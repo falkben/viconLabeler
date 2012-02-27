@@ -1,4 +1,4 @@
-function [d3_analysed track] = vicon_labeler
+function [track d3_analysed] = vicon_labeler
 
 d3_analysed = load_trial;
 trialfig = plot_trial(d3_analysed);
@@ -12,7 +12,7 @@ track = sort_track(track);
 plot_track(track);
 
 
- messaround(track,d3_analysed);
+messaround(track,d3_analysed);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -39,13 +39,14 @@ load(fname);
 
 %plotting the trial
 function trialfig = plot_trial(d3_analysed)
-trialfig = figure(1);clf;view(3);
+trialfig = figure(1);clf;
 all_points=cell2mat(d3_analysed.unlabeled_bat);
 all_points(all_points==0)=nan;
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),...
   'ok','markersize',2,'markerfacecolor','k');
 axis vis3d;
 grid on;
+view(3);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -61,13 +62,6 @@ pause
 c_info = getCursorInfo(dcm_obj);
 point_indx = c_info.DataIndex;
 point = c_info.Position;
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%convert the point_indx to a frame
-function frame = get_frame_from_point_indx(point_indx,d3_analysed)
-frame_lengths=cellfun(@(c) size(c,1),d3_analysed.unlabeled_bat);
-frame = find( cumsum(frame_lengths) - point_indx + 1 >= 0 ,1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -93,43 +87,6 @@ axis vis3d;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%connecting points, frame by frame
-function track = create_track(track,d3_analysed,frame,point,direction)
-frames2plot=frame-20:frame+20;
-if direction < 0
-  frames = fliplr(frames2plot(frames2plot<frame));
-else
-  frames = frames2plot(frames2plot>frame);
-end
-track(1).point=point;
-track(1).frame=frame;
-last_point = point;
-for f=1:length(frames)
-  other_points = d3_analysed.unlabeled_bat{frames(f)};
-  D = distance(last_point,other_points);
-  [M p]=min(D);
-  track(end+1).point=other_points(p,:);
-  track(end).frame=frames(f);
-  last_point = track(end).point;
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%remove duplicate frames in track
-function track = remove_duplicate_frames(track)
-[b, m, n] = unique([track.frame]);
-track = track(m);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%sort the track
-function track = sort_track(track)
-track_frames=[track.frame];
-[B,IX] = sort(track_frames);
-track = track(IX);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %plot track
 function plot_track(track)
 figure(2);
@@ -138,18 +95,6 @@ track_points=reshape([track(:).point],3,length([track(:).point])/3)';
 plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
   '.-','color',[.5 .5 .5]);
 hold off;
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%messing with track
-function messaround(track,d3_analysed)
-track_points=reshape([track(:).point],3,length([track(:).point])/3)';
-track_points_dist = distance([0 0 0],diff(track_points));
-track_speed = track_points_dist*d3_analysed.fvideo;
-
-
-% figure;plot(track_points_dist)
-figure(3); plot([track(2:end).frame],track_speed); ylabel('m/s');
 
 
 % frames=1:length(d3_analysed.unlabeled_bat);
