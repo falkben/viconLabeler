@@ -22,7 +22,7 @@ function varargout = vicon_label_GUI(varargin)
 
 % Edit the above text to modify the response to help vicon_label_GUI
 
-% Last Modified by GUIDE v2.5 27-Feb-2012 15:56:19
+% Last Modified by GUIDE v2.5 28-Feb-2012 16:19:04
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -60,6 +60,20 @@ guidata(hObject, handles);
 
 % UIWAIT makes vicon_label_GUI wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
+movegui(hObject,[100 40]); 
+% fig_size=get(gcf,'OuterPosition');
+% set(gcf,'OuterPosition',[10 10 fig_size(3:4)]);
+
+
+% --- Executes when user attempts to close GUI.
+function figure1_CloseRequestFcn(hObject, eventdata, handles)
+% hObject    handle to figure1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: delete(hObject) closes the figure
+delete(hObject);
+close all;
 
 
 % --- Outputs from this function are returned to the command line.
@@ -85,11 +99,30 @@ grid on;
 view(3);
 
 
+function update_track(handles)
+global vicon_label
+
+plot_point_subset();
+
+frames2plot=vicon_label.frame+str2double(get(handles.track_start_frame_edit,'String')) ...
+  :vicon_label.frame+str2double(get(handles.track_end_frame_edit,'String'));
+
+track = create_track(frames2plot,vicon_label.frame,vicon_label.point,...
+  vicon_label.d3_analysed);
+track = remove_duplicate_frames(track);
+track = remove_duplicate_points(track);
+vicon_label.track=track;
+plot_track();
+
+messaround(vicon_label.track,vicon_label.d3_analysed);
+
+
 function plot_point_subset()
 global vicon_label
 figure(2);clf;grid on;
 hold on;
-frames2plot=vicon_label.frame-20:vicon_label.frame+20;
+frames2plot=vicon_label.frame+vicon_label.internal.start_frame...
+  :vicon_label.frame+vicon_label.internal.end_frame;
 for f=frames2plot
   points=vicon_label.d3_analysed.unlabeled_bat{f};
   if ~isempty(find(points, 1))
@@ -141,6 +174,7 @@ scrn_size=get(0,'ScreenSize');
 figure(1);
 set(gcf,'position',[15 .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)])
 plot_trial();
+set(handles.grab_start_point_button,'Enable','on');
 
 
 % --- Executes on button press in grab_start_point_button.
@@ -149,35 +183,126 @@ function grab_start_point_button_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global vicon_label
-figure(1);
-grid on;
+if get(handles.trial_fig_radiobutton,'Value')
+  figure(1);
+elseif isfield(vicon_label,'frame')
+  figure(2);
+end
 dcm_obj = datacursormode(gcf);
 set(dcm_obj,'DisplayStyle','datatip',...
   'SnapToDataVertex','off','Enable','on')
 disp('Select point to zoom on and label, then press enter');
 pause
 c_info = getCursorInfo(dcm_obj);
-point_indx = c_info.DataIndex;
+% point_indx = c_info.DataIndex;
 point = c_info.Position;
-vicon_label.frame = get_frame_from_point_indx(point_indx,vicon_label.d3_analysed);
-vicon_label.point_indx = point_indx;
+vicon_label.frame = get_frame_from_point(point,vicon_label.d3_analysed);
+% vicon_label.frame = get_frame_from_point_indx(point_indx,...
+%   vicon_label.d3_analysed);
 vicon_label.point = point;
 scrn_size=get(0,'ScreenSize');
 figure(2);
 set(gcf,'position',[30+.3*scrn_size(3) .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)])
-plot_point_subset();
-
-track = create_track([],vicon_label.d3_analysed,vicon_label.frame,...
-  vicon_label.point,1);
-track = create_track(track,vicon_label.d3_analysed,vicon_label.frame,...
-  vicon_label.point,-1);
-track = remove_duplicate_frames(track);
-track = sort_track(track);
-vicon_label.track=track;
-plot_track();
-
-messaround(vicon_label.track,vicon_label.d3_analysed);
+update_track(handles);
+set(handles.zoom_fig_radiobutton,'Enable','on');
 
 
 
+function track_start_frame_edit_Callback(hObject, eventdata, handles)
+global vicon_label
+f=str2double(get(hObject,'String'));
+if f>=0
+  f=-1;
+end
+set(hObject,'String',num2str(f));
+vicon_label.internal.start_frame=f;
+update_track(handles);
 
+% --- Executes during object creation, after setting all properties.
+function track_start_frame_edit_CreateFcn(hObject, eventdata, handles)
+global vicon_label
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+vicon_label.internal.start_frame=str2double(get(hObject,'String'));
+
+
+
+function track_end_frame_edit_Callback(hObject, eventdata, handles)
+global vicon_label
+f=str2double(get(hObject,'String'));
+if f<=0
+  f=1;
+end
+set(hObject,'String',num2str(f));
+vicon_label.internal.end_frame=f;
+update_track(handles);
+
+% --- Executes during object creation, after setting all properties.
+function track_end_frame_edit_CreateFcn(hObject, eventdata, handles)
+global vicon_label
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+vicon_label.internal.end_frame=str2double(get(hObject,'String'));
+
+
+% --- Executes on button press in start_lower_pushbutton.
+function start_lower_pushbutton_Callback(hObject, eventdata, handles)
+change_start_track_edit(-1,handles);
+
+% --- Executes on button press in start_higher_pushbutton.
+function start_higher_pushbutton_Callback(hObject, eventdata, handles)
+change_start_track_edit(1,handles);
+
+% --- Executes on button press in end_lower_pushbutton.
+function end_lower_pushbutton_Callback(hObject, eventdata, handles)
+change_end_track_edit(-1,handles);
+
+% --- Executes on button press in end_higher_pushbutton.
+function end_higher_pushbutton_Callback(hObject, eventdata, handles)
+change_end_track_edit(1,handles);
+
+function change_start_track_edit(direction,handles)
+global vicon_label
+f=str2double(get(handles.track_start_frame_edit,'String'))+direction;
+if f>=0
+  return;
+end
+set(handles.track_start_frame_edit,'String',num2str(f));
+vicon_label.internal.start_frame=f;
+update_track(handles);
+
+function change_end_track_edit(direction,handles)
+global vicon_label
+f=str2double(get(handles.track_end_frame_edit,'String'))+direction;
+if f<=0
+  return
+end
+set(handles.track_end_frame_edit,'String',num2str(f));
+vicon_label.internal.end_frame=f;
+update_track(handles);
+
+
+% --- Executes on button press in trial_fig_radiobutton.
+function trial_fig_radiobutton_Callback(hObject, eventdata, handles)
+% hObject    handle to trial_fig_radiobutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of trial_fig_radiobutton
+if get(hObject,'Value')==1
+  set(handles.zoom_fig_radiobutton,'Value',0);
+end
+
+
+% --- Executes on button press in zoom_fig_radiobutton.
+function zoom_fig_radiobutton_Callback(hObject, eventdata, handles)
+% hObject    handle to zoom_fig_radiobutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of zoom_fig_radiobutton
+if get(hObject,'Value')==1
+  set(handles.trial_fig_radiobutton,'Value',0);
+end
