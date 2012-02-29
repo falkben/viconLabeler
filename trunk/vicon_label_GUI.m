@@ -22,7 +22,7 @@ function varargout = vicon_label_GUI(varargin)
 
 % Edit the above text to modify the response to help vicon_label_GUI
 
-% Last Modified by GUIDE v2.5 28-Feb-2012 16:19:04
+% Last Modified by GUIDE v2.5 29-Feb-2012 15:25:03
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -61,8 +61,6 @@ guidata(hObject, handles);
 % UIWAIT makes vicon_label_GUI wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 movegui(hObject,[100 40]); 
-% fig_size=get(gcf,'OuterPosition');
-% set(gcf,'OuterPosition',[10 10 fig_size(3:4)]);
 
 
 % --- Executes when user attempts to close GUI.
@@ -107,47 +105,27 @@ plot_point_subset();
 frames2plot=vicon_label.frame+str2double(get(handles.track_start_frame_edit,'String')) ...
   :vicon_label.frame+str2double(get(handles.track_end_frame_edit,'String'));
 
-track = create_track(frames2plot,vicon_label.frame,vicon_label.point,...
-  vicon_label.d3_analysed);
-track = remove_duplicate_frames(track);
-track = remove_duplicate_points(track);
-vicon_label.track=track;
-plot_track();
-
-messaround(vicon_label.track,vicon_label.d3_analysed);
-
-
-function plot_point_subset()
-global vicon_label
-figure(2);clf;grid on;
-hold on;
-frames2plot=vicon_label.frame+vicon_label.internal.start_frame...
-  :vicon_label.frame+vicon_label.internal.end_frame;
-for f=frames2plot
-  points=vicon_label.d3_analysed.unlabeled_bat{f};
-  if ~isempty(find(points, 1))
-    plot3(points(:,1),points(:,2),points(:,3),...
-      'ok','markersize',2,'markerfacecolor','k');
-  end
+if ~isfield(vicon_label,'track')
+  track = create_track(frames2plot,vicon_label.frame,vicon_label.point,...
+    vicon_label.d3_analysed);
+  vicon_label.track=track;
+  enable_track_controls(handles);
 end
-plot3(vicon_label.point(1),vicon_label.point(2),vicon_label.point(3),...
-  'or','linewidth',2);
-axis([vicon_label.point(1)-.5,vicon_label.point(1)+.5,...
-  vicon_label.point(2)-.5,vicon_label.point(2)+.5,...
-  vicon_label.point(3)-.25,vicon_label.point(3)+.25]);
-hold off;
-axis vis3d;
-view(3);
 
-function plot_track()
-global vicon_label
-figure(2);
-hold on;
-track_points=reshape([vicon_label.track(:).point],3,...
-  length([vicon_label.track(:).point])/3)';
-plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
-  '.-','color',[.5 .5 .5]);
-hold off;
+plot_track(vicon_label.track);
+
+% messaround(vicon_label.track,vicon_label.d3_analysed);
+
+function enable_track_controls(handles)
+set(handles.extend_pushbutton,'enable','on');
+set(handles.clear_pushbutton,'enable','on');
+set(handles.track_start_frame_edit,'enable','on');
+set(handles.track_end_frame_edit,'enable','on');
+set(handles.start_lower_pushbutton,'enable','on');
+set(handles.start_higher_pushbutton,'enable','on');
+set(handles.end_lower_pushbutton,'enable','on');
+set(handles.end_higher_pushbutton,'enable','on');
+
 
 % --- Executes on button press in load_trial_button.
 function load_trial_button_Callback(hObject, eventdata, handles)
@@ -155,6 +133,7 @@ function load_trial_button_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global vicon_label
+initialize_internal(handles);
 if ispref('vicon_labeler','d3path') && ...
     exist(getpref('vicon_labeler','d3path'),'dir')
   pn=getpref('vicon_labeler','d3path');
@@ -175,6 +154,16 @@ figure(1);
 set(gcf,'position',[15 .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)])
 plot_trial();
 set(handles.grab_start_point_button,'Enable','on');
+
+function initialize_internal(handles)
+global vicon_label
+vicon_label.internal.end_frame=str2double(get(handles.track_end_frame_edit,'String'));
+vicon_label.internal.start_frame=str2double(get(handles.track_start_frame_edit,'String'));
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%CALLBACKS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 % --- Executes on button press in grab_start_point_button.
@@ -203,6 +192,9 @@ vicon_label.point = point;
 scrn_size=get(0,'ScreenSize');
 figure(2);
 set(gcf,'position',[30+.3*scrn_size(3) .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)])
+if isfield(vicon_label,'track')
+  vicon_label = rmfield(vicon_label, 'track');
+end
 update_track(handles);
 set(handles.zoom_fig_radiobutton,'Enable','on');
 
@@ -224,7 +216,6 @@ global vicon_label
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-vicon_label.internal.start_frame=str2double(get(hObject,'String'));
 
 
 
@@ -244,7 +235,6 @@ global vicon_label
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-vicon_label.internal.end_frame=str2double(get(hObject,'String'));
 
 
 % --- Executes on button press in start_lower_pushbutton.
@@ -291,9 +281,6 @@ function trial_fig_radiobutton_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of trial_fig_radiobutton
-if get(hObject,'Value')==1
-  set(handles.zoom_fig_radiobutton,'Value',0);
-end
 
 
 % --- Executes on button press in zoom_fig_radiobutton.
@@ -303,6 +290,16 @@ function zoom_fig_radiobutton_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of zoom_fig_radiobutton
-if get(hObject,'Value')==1
-  set(handles.trial_fig_radiobutton,'Value',0);
-end
+
+
+% --- Executes on button press in extend_pushbutton.
+function extend_pushbutton_Callback(hObject, eventdata, handles)
+global vicon_label
+vicon_label.track = extend_track(vicon_label.track,vicon_label.d3_analysed);
+
+
+% --- Executes on button press in clear_pushbutton.
+function clear_pushbutton_Callback(hObject, eventdata, handles)
+global vicon_label
+vicon_label = rmfield(vicon_label, 'track');
+update_track(handles);
