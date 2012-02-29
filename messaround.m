@@ -2,16 +2,24 @@
 function messaround(track,d3_analysed)
 track_points=reshape([track(:).point],3,length([track(:).point])/3)';
 track_points_dist = distance([0 0 0],diff(track_points));
-track_speed = track_points_dist./(diff([track.frame])')*d3_analysed.fvideo;
-figure(4); plot(2:length(track_points),track_speed); ylabel('m/s');
+track_speed = track_points_dist./...
+  (diff([track.frame])')*d3_analysed.fvideo;
+figure(4);
+set(gcf,'position',[715 45 400 300]);
+plot(2:length(track_points),track_speed,'-b','linewidth',2); 
+ylabel('speed m/s');
+hold on;
+h1=plot(1:length(track_speed),...
+  mean(track_speed)*ones(length(track_speed),1),'-b');
+hold off;
 % figure; plot(track_points_dist)
 
-vel_dir = -cart2pol(track_points(end,1)-track_points(1,1),...
+v_dir = -cart2pol(track_points(end,1)-track_points(1,1),...
   track_points(end,2)-track_points(1,2));
 % [thetavel] = bat_velocity_direction(track_points);
 % theta = median(thetavel);
 
-rotmat=[cos(vel_dir) sin(vel_dir) 0; -sin(vel_dir) cos(vel_dir) 0; 0 0 1];
+rotmat=[cos(v_dir) sin(v_dir) 0; -sin(v_dir) cos(v_dir) 0; 0 0 1];
 track_points_rot = track_points*rotmat;
 
 frames = [track.frame];
@@ -40,7 +48,7 @@ zfit = spline(x,track_points_rot(:,3),tfit);
 
 
 figure(3); clf;
-
+set(gcf,'position',[300 45 400 300]);
 subplot(3,1,1);
 hold on;
 plot(tfit,xfit,'r-','LineWidth',2);
@@ -65,22 +73,22 @@ plot(track_points_rot(:,3),'.');
 hold off;
 ylabel('Z')
 
-rotmat_rev=[cos(-vel_dir) sin(-vel_dir) 0; -sin(-vel_dir) cos(-vel_dir) 0; 0 0 1];
+rotmat_rev=[cos(-v_dir) sin(-v_dir) 0; -sin(-v_dir) cos(-v_dir) 0; 0 0 1];
+fit_rerotate = [xfit yfit zfit ]*rotmat_rev;
 
-fit_rerotate = [xfit  yfit  zfit ]*rotmat_rev;
-
-figure(2);
-hold on;
-plot3(fit_rerotate(:,1),fit_rerotate(:,2),fit_rerotate(:,3),...
-  '-r','LineWidth',2);
-hold off;
+% figure(2);
+% hold on;
+% plot3(fit_rerotate(:,1),fit_rerotate(:,2),fit_rerotate(:,3),...
+%   '-r','LineWidth',2);
+% hold off;
 
 figure(4); hold on;
 fit_dist = distance([0 0 0],diff(fit_rerotate));
 fit_speed = fit_dist./diff(tfit)*d3_analysed.fvideo;
-figure(4); plot(tfit(2:end),fit_speed,...
+plot(tfit(2:end),fit_speed,...
   '-r','linewidth',2);
+h2=plot(tfit,mean(fit_speed)*ones(length(tfit),1),'-r');
 hold off;
-
+legend([h1 h2],{'Vicon','Fit'},'fontsize',8);
 
 % figure; plot3(track_points_rot(:,1),track_points_rot(:,2),track_points_rot(:,3))
