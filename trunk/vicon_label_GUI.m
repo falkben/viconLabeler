@@ -185,10 +185,9 @@ pause
 c_info = getCursorInfo(dcm_obj);
 % point_indx = c_info.DataIndex;
 point = c_info.Position;
-vicon_label.frame = get_frame_from_point(point,vicon_label.d3_analysed);
+[vicon_label.frame vicon_label.point] = get_frame_from_point(point,vicon_label.d3_analysed);
 % vicon_label.frame = get_frame_from_point_indx(point_indx,...
 %   vicon_label.d3_analysed);
-vicon_label.point = point;
 scrn_size=get(0,'ScreenSize');
 figure(2);
 set(gcf,'position',[30+.3*scrn_size(3) .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)])

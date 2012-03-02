@@ -25,7 +25,8 @@ for f=2:length(frames)
   [speed dir] = get_track_vel(track);
   
   if ~isempty(dir)
-    THETA = cart2pol(other_points(p,1),other_points(p,2));
+    THETA = cart2pol(other_points(p,1)-last_point(1),...
+       other_points(p,2)-last_point(2));
     
     dir_diff = (THETA - dir(end));
     if dir_diff > 2*pi
@@ -35,7 +36,7 @@ for f=2:length(frames)
     end
   end
   
-  if isempty(speed) || (M < 1.8*speed(end) && dir_diff < 10*pi/180)
+  if isempty(speed) || (M < 1.8*speed(end) && dir_diff < 60*pi/180)
     track(end+1).point=other_points(p,:);
     track(end).frame=frames(f);
     last_point = track(end).point;
@@ -45,7 +46,7 @@ for f=2:length(frames)
 end
 
 %in meters / frame
-function [sm_speed sm_dir] = get_track_vel(track)
+function [sm_speed dir] = get_track_vel(track)
 if length(track) >= 3
   points = reshape([track(:).point],3,...
     length([track(:).point])/3)';
@@ -54,13 +55,13 @@ if length(track) >= 3
   speed = distance([0 0 0],point_diff) ./ abs(diff(frames));
   sm_speed = smooth(speed);
   
-  THETA = cart2pol(points(:,1),points(:,2));
-  sm_dir = smooth(unwrap(THETA));
+  THETA = cart2pol(point_diff(:,1),point_diff(:,2));
+  dir = unwrap(THETA);
     
   figure(10); 
   subplot(2,1,1); plot(speed);
-  subplot(2,1,2); plot(unwrap(THETA));
+  subplot(2,1,2); plot(dir);
 else
-  sm_speed=[];sm_dir=[];
+  sm_speed=[];dir=[];
 end
 
