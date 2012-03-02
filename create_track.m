@@ -1,24 +1,30 @@
 %connecting points, frame by frame
-function track = create_track(frames2plot,frame,point,d3_analysed)
+function track = create_track(frame,point,d3_analysed,max_length)
 % function track = create_track(track,d3_analysed,frame,point,direction)
 
-start_frames = fliplr(frames2plot(frames2plot<=frame));
-end_frames = frames2plot(frames2plot>=frame);
-
-start_track = sub_create_track(point,frame,start_frames,d3_analysed);
-end_track = sub_create_track(point,frame,end_frames,d3_analysed);
+if nargin == 4
+  sub_length=round(max_length/2);
+else
+  sub_length=[];
+end
+start_track = sub_create_track(point,frame,d3_analysed,1,sub_length);
+end_track = sub_create_track(point,frame,d3_analysed,-1,sub_length);
 
 track=[start_track end_track];
 track = remove_duplicate_frames(track);
 
 % track = remove_duplicate_points(track);
 
-function track = sub_create_track(point,frame,frames,d3_analysed)
+
+%direction is either -1 or +1, sub_length is the length of the track to make
+function track = sub_create_track(point,frame,d3_analysed,direction,sub_length)
 track(1).point=point;
 track(1).frame=frame;
 last_point = point;
-for f=2:length(frames)
-  other_points = d3_analysed.unlabeled_bat{frames(f)};
+f=0;
+while isempty(sub_length) || length(track) < sub_length
+  f = f+1;
+  other_points = d3_analysed.unlabeled_bat{frame+f*direction};
   D = distance(last_point,other_points);
   [M p]=min(D);
   
@@ -34,34 +40,15 @@ for f=2:length(frames)
     elseif dir_diff < -2*pi
       dir_diff = dir_diff + 2*pi;
     end
+    dir_diff = abs(dir_diff);
   end
   
-  if isempty(speed) || (M < 1.8*speed(end) && dir_diff < 60*pi/180)
+  if isempty(speed) || (M < 1.8*speed(end) && dir_diff < 45*pi/180)
     track(end+1).point=other_points(p,:);
-    track(end).frame=frames(f);
+    track(end).frame=frame+f*direction;
     last_point = track(end).point;
   else
     return;
   end
-end
-
-%in meters / frame
-function [sm_speed dir] = get_track_vel(track)
-if length(track) >= 3
-  points = reshape([track(:).point],3,...
-    length([track(:).point])/3)';
-  frames = [track.frame]';
-  point_diff = diff(points);
-  speed = distance([0 0 0],point_diff) ./ abs(diff(frames));
-  sm_speed = smooth(speed);
-  
-  THETA = cart2pol(point_diff(:,1),point_diff(:,2));
-  dir = unwrap(THETA);
-    
-  figure(10); 
-  subplot(2,1,1); plot(speed);
-  subplot(2,1,2); plot(dir);
-else
-  sm_speed=[];dir=[];
 end
 
