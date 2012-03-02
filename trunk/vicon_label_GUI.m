@@ -90,6 +90,16 @@ global vicon_label
 figure(1);clf;view(3);
 all_points=cell2mat(vicon_label.d3_analysed.unlabeled_bat);
 all_points(all_points==0)=nan;
+
+all_points_nonan = all_points(~isnan(all_points(:,1)),:);
+
+% tic
+% for k=1:length(all_points_nonan)
+%   frame = get_frame_from_point(all_points_nonan(k,:),vicon_label.d3_analysed);
+%   rating(k) = rate_point(frame,all_points_nonan(k,:),vicon_label.d3_analysed);
+% end
+% toc
+
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),...
   'ok','markersize',2,'markerfacecolor','k');
 axis vis3d;
@@ -102,11 +112,8 @@ global vicon_label
 
 plot_point_subset();
 
-frames2plot=vicon_label.frame+str2double(get(handles.track_start_frame_edit,'String')) ...
-  :vicon_label.frame+str2double(get(handles.track_end_frame_edit,'String'));
-
 if ~isfield(vicon_label,'track')
-  track = create_track(frames2plot,vicon_label.frame,vicon_label.point,...
+  track = create_track(vicon_label.frame,vicon_label.point,...
     vicon_label.d3_analysed);
   vicon_label.track=track;
   enable_track_controls(handles);
