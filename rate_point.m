@@ -1,6 +1,6 @@
 function rating = rate_point(frame,point,d3_analysed)
 
-track = create_track(frame,point,d3_analysed,5);
+track = create_track(frame,point,d3_analysed.unlabeled_bat,5);
 track = remove_duplicate_points(track);
 [sm_speed dir] = get_track_vel(track);
 
