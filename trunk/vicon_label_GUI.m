@@ -90,16 +90,6 @@ global vicon_label
 figure(1);clf;view(3);
 all_points=cell2mat(vicon_label.d3_analysed.unlabeled_bat);
 all_points(all_points==0)=nan;
-
-all_points_nonan = all_points(~isnan(all_points(:,1)),:);
-
-% tic
-% for k=1:length(all_points_nonan)
-%   frame = get_frame_from_point(all_points_nonan(k,:),vicon_label.d3_analysed);
-%   rating(k) = rate_point(frame,all_points_nonan(k,:),vicon_label.d3_analysed);
-% end
-% toc
-
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),...
   'ok','markersize',2,'markerfacecolor','k');
 axis vis3d;
@@ -141,25 +131,14 @@ function load_trial_button_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global vicon_label
 initialize_internal(handles);
-if ispref('vicon_labeler','d3path') && ...
-    exist(getpref('vicon_labeler','d3path'),'dir')
-  pn=getpref('vicon_labeler','d3path');
-else
-  pn=[];
-end
-[filename pathname] = uigetfile('*.mat','Pick c3d file to label',pn);
-if isequal(filename,0)
-  return;
-end
-setpref('vicon_labeler','d3path',pathname);
 
-fname=[pathname filename];
-load(fname);
-vicon_label.d3_analysed = d3_analysed;
+vicon_label.d3_analysed = load_trial();
+
 scrn_size=get(0,'ScreenSize');
 figure(1);
 set(gcf,'position',[15 .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)])
 plot_trial();
+
 set(handles.grab_start_point_button,'Enable','on');
 
 function initialize_internal(handles)
