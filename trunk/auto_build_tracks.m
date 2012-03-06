@@ -1,13 +1,12 @@
-function tracks = auto_build_tracks(d3_analysed)
+function tracks = auto_build_tracks(d3_analysed,rating)
 
 if nargin < 1 
   d3_analysed = load_trial();
+  rating = rate_all(d3_analysed);
   DIAG=1;
 else
   DIAG=0;
 end
-
-rating = rate_all(d3_analysed);
 
 % [b ranking_spd]=sort([rating.spd_var]);
 % [bb ranking_dir]=sort([rating.dir_var]);
@@ -19,40 +18,76 @@ sorted_points=reshape([sorted_rating.point],3,length([sorted_rating.point])/3)';
 
 k=1;
 tracks={};
+endings={};
 points=sorted_points;
 unlabeled_bat = d3_analysed.unlabeled_bat;
 while length(points) >= .1*length(sorted_points)
   point=points(1,:);
-  [b findx] = intersect(sorted_points,point,'rows');
-  frame = sorted_rating(findx).frame;
-  
-  tracks{k} = create_track(frame,point,unlabeled_bat);
-  
-  track_points = reshape([tracks{k}.point],3,length([tracks{k}.point])/3)';
-  
-  [r i]=setxor(points,track_points,'rows');
-  points = points(sort(i),:);
-  unlabeled_bat = rem_points_from_unlabeled_bat(unlabeled_bat,track_points,[tracks{k}.frame]);
-  k=k+1;
+  [b rindx] = intersect(sorted_points,point,'rows');
+  frame = sorted_rating(rindx).frame;
+%   r_track_points = reshape([sorted_rating(rindx).track.point],3,...
+%     length([sorted_rating(rindx).track.point])/3)';
+%   if points_in_unlabeled(unlabeled_bat,r_track_points,...
+%       [sorted_rating(rindx).track.frame])
+    [tracks{k} endings{k}] = create_track(frame,point,unlabeled_bat);
+        
+    track_points = reshape([tracks{k}.point],3,length([tracks{k}.point])/3)';
+    [r i]=setxor(points,track_points,'rows');
+%     track_frames = [tracks{k}.frame];
+    points = points(sort(i),:);
+    k=k+1;
+%   else
+%     track_points = point;
+%     track_frames = frame;
+%     points(1,:) = [];
+%   end
+%   unlabeled_bat = rem_points_from_unlabeled_bat(unlabeled_bat,track_points,...
+%     track_frames);
 end
 
 if DIAG
-  colors='rbgymc';
+%   colors='rbgymc';
   close all;
   figure(3); clf; hold on;
   for k=1:length(tracks)
     track = tracks{k};
     track_points = reshape([track.point],3,length([track.point])/3)';
 
+%     plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
+%       'color',colors(rem(k,length(colors))+1),'linewidth',3);
+    if ~isempty(strfind(endings{k},'spd')) && isempty(strfind(endings{k},'dir'))
+      col='r';
+    elseif ~isempty(strfind(endings{k},'dir')) && isempty(strfind(endings{k},'spd'))
+      col='b';
+    elseif ~isempty(strfind(endings{k},'dir')) && ~isempty(strfind(endings{k},'spd'))
+      col='m';
+    else
+      col='g';
+    end
     plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
-      'color',colors(rem(k,length(colors))+1),'linewidth',3);
+      'color',col,'linewidth',3);
   end
   plot3(sorted_points(:,1),sorted_points(:,2),sorted_points(:,3),...
     '.k');
   hold off;
   grid on;
   axis vis3d;
+  view(3);
 end
+
+
+
+
+
+%determines if the points are in unlabeled bat
+function in_unlabeled = points_in_unlabeled(unlabeled_bat,track_points,track_frames)
+in_unlabeled = 0;
+for k=1:size(track_points,1)
+  if isempty(intersect(unlabeled_bat{track_frames(k)},track_points(k,:),'rows'))
+    return;
+  end
+end
+in_unlabeled = 1;
 
 
 %removes the tracked points from unlabeled cell array

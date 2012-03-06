@@ -1,4 +1,5 @@
 function rating = rate_point(frame,point,d3_analysed)
+%rating includes a 5 point track, as well as measures of the track quality
 
 track = create_track(frame,point,d3_analysed.unlabeled_bat,5);
 track = remove_duplicate_points(track);
@@ -17,6 +18,7 @@ rating.spd_var = spd_var;
 rating.dir_var = dir_var;
 rating.point = point;
 rating.frame = frame;
+rating.track = track;
 
 % figure; plot(sm_speed);
 % figure; plot(dir);

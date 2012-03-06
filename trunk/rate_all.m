@@ -1,4 +1,5 @@
 function rating = rate_all(d3_analysed)
+%rates all the points in a d3_analysed trial
 
 all_points=cell2mat(d3_analysed.unlabeled_bat);
 
