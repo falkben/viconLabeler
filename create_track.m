@@ -29,7 +29,8 @@ track(1).point=point;
 track(1).frame=frame;
 last_point = point;
 f=0;
-while isempty(sub_length) || length(track) < sub_length
+while frame+(f+1)*direction >= 1 && frame+(f+1)*direction <= length(unlabeled_bat) && ...
+    ( isempty(sub_length) || length(track) < sub_length )
   f = f+1;
   other_points = unlabeled_bat{frame+f*direction};
   D = distance(last_point,other_points);
