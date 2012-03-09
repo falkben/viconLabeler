@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 08-Mar-2012 15:05:28
+% Last Modified by GUIDE v2.5 09-Mar-2012 16:24:45
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -82,11 +82,12 @@ if ~isequal(fn,0)
   assign_labels.tracks = tracks;
   assign_labels.rating = label_ratings.rating;
   assign_labels.d3_analysed = label_ratings.d3_analysed;
+  assign_labels.labels = cell(length(tracks),1);
   initialize(handles);
   update();
 end
 
-function load_label_items()
+function load_label_items(handles)
 global assign_labels
 
 if ispref('vicon_labeler','label_items') && ...
@@ -102,17 +103,15 @@ end
 
 if ~isequal(fn,0)
   setpref('vicon_labeler','label_items',pn);
-  load([pn fn]);
-  assign_labels.label_items = label_items;
+  LI=load([pn fn]);
+  assign_labels.label_items = LI.label_items;
+  set(handles.label_popup,'string',{'' LI.label_items.markers.name});
 else
-  %none selected - new label items
+  manage_label_items();
+  load_label_items(handles);
 end
-set(handles.label_popup,'string',{label_items.name});
 
-function new_label_items()
-waitfor(label_items);
-
-function edit_label_items()
+function manage_label_items()
 waitfor(label_items);
 
 function initialize(handles)
@@ -137,6 +136,17 @@ track_points = reshape([track.point],3,length([track.point])/3)';
 track_frames = [track.frame];
 unlab_near_track = cell2mat(unlabeled_bat(track_frames));
 unlab_near_track(unlab_near_track(:,1)==0,:) = [];
+if isempty(assign_labels.labels{assign_labels.cur_track_num})
+  track_color = [.5 .5 .5];
+else
+  track_color = assign_labels.labels{assign_labels.cur_track_num}.color;
+end
+
+labels = [assign_labels.labels{...
+  ~cellfun(@isempty,assign_labels.labels)}];
+if ~isempty(labels)
+  labeled_colors = [labels.color];
+end
 
 scrn_size=get(0,'ScreenSize');
 
@@ -148,7 +158,15 @@ hold on;
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),...
   'ok','markersize',3,'markerfacecolor','k');
 plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
-  '-og','markersize',8);
+  '-o','color',track_color,'markersize',8);
+if ~isempty(labels)
+  for LT = 1:length(labels)
+    LT_points = reshape([labels(LT).track.point],3,...
+      length([labels(LT).track.point])/3)';
+    plot3(LT_points(:,1),LT_points(:,2),LT_points(:,3),...
+      '-o','color',labeled_colors(LT),'markersize',8);
+  end
+end
 axis vis3d;
 view([az,el]);
 grid on;
@@ -159,7 +177,7 @@ clf;
 set(gcf,'position',[30+.3*scrn_size(3) .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)]);
 hold on;
 plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
-  '-og','markersize',8);
+  '-o','color',track_color,'markersize',8);
 plot3(unlab_near_track(:,1),unlab_near_track(:,2),unlab_near_track(:,3),...
   'ok','markersize',3,'markerfacecolor','k');
 axis vis3d;
@@ -201,6 +219,19 @@ elseif n > length(assign_labels.tracks)
 end
 set(handles.track_num_edit,'string',num2str(n));
 assign_labels.cur_track_num=n;
+
+function track_labeled(label_string)
+global assign_labels
+assign_labels.labels{assign_labels.cur_track_num}.label = label_string;
+
+LI_indx = find(~cellfun(@isempty,...
+  strfind({assign_labels.label_items.markers.name},label_string)),1);
+
+assign_labels.labels{assign_labels.cur_track_num}.color = ...
+  assign_labels.label_items.markers(LI_indx).color;
+assign_labels.labels{assign_labels.cur_track_num}.track = ...
+  assign_labels.tracks{assign_labels.cur_track_num};
+update();
 
 
 % --- Outputs from this function are returned to the command line.
@@ -311,7 +342,8 @@ function label_popup_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns label_popup contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from label_popup
-
+contents = cellstr(get(hObject,'String'));
+track_labeled(contents{get(hObject,'Value')});
 
 % --- Executes during object creation, after setting all properties.
 function label_popup_CreateFcn(hObject, eventdata, handles)
@@ -332,23 +364,9 @@ function label_menu_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-
 % --------------------------------------------------------------------
-function open_label_items_Callback(hObject, eventdata, handles)
-% hObject    handle to open_label_items (see GCBO)
+function manage_label_items_Callback(hObject, eventdata, handles)
+% hObject    handle to manage_label_items (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-
-% --------------------------------------------------------------------
-function edit_label_items_Callback(hObject, eventdata, handles)
-% hObject    handle to edit_label_items (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
-% --------------------------------------------------------------------
-function new_label_items_Callback(hObject, eventdata, handles)
-% hObject    handle to new_label_items (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+manage_label_items();
