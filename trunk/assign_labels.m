@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 09-Mar-2012 16:24:45
+% Last Modified by GUIDE v2.5 12-Mar-2012 16:58:50
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -80,11 +80,10 @@ if ~isequal(fn,0)
   load([pn fn]);
   tracks = auto_build_tracks(label_ratings.d3_analysed,label_ratings.rating);
   assign_labels.tracks = tracks;
-  assign_labels.rating = label_ratings.rating;
   assign_labels.d3_analysed = label_ratings.d3_analysed;
   assign_labels.labels = cell(length(tracks),1);
   initialize(handles);
-  update();
+  update(handles);
 end
 
 function load_label_items(handles)
@@ -120,27 +119,50 @@ set(handles.track_num_edit,'string','1');
 set(handles.max_tracks,'string',num2str(length(assign_labels.tracks)));
 assign_labels.cur_track_num=1;
 
+set(handles.track_num_down_button,'enable','on');
+set(handles.track_num_up_button,'enable','on');
+set(handles.track_num_edit,'enable','on');
+set(handles.refocus_button,'enable','on');
+set(handles.full_trial_radio,'enable','on');
+set(handles.zoomed_radio,'enable','on');
+set(handles.label_popup,'enable','on');
+set(handles.rating_sort,'enable','on');
+set(handles.frame_sort,'enable','on');
+set(handles.rating_sort,'value',1);
+
 load_label_items(handles);
 
 figure(1); view(3);
 figure(2); view(3);
 
-function update()
+function update(handles)
 global assign_labels
 unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
 all_points = cell2mat(unlabeled_bat);
 all_points(all_points(:,1)==0,:) = [];
 
-track = assign_labels.tracks{assign_labels.cur_track_num};
+track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 track_points = reshape([track.point],3,length([track.point])/3)';
 track_frames = [track.frame];
 unlab_near_track = cell2mat(unlabeled_bat(track_frames));
 unlab_near_track(unlab_near_track(:,1)==0,:) = [];
 if isempty(assign_labels.labels{assign_labels.cur_track_num})
   track_color = [.5 .5 .5];
+  set(handles.label_popup,'value',1);
 else
   track_color = assign_labels.labels{assign_labels.cur_track_num}.color;
+  label_indx = find(~cellfun(@isempty,strfind({assign_labels.label_items.markers.name},...
+    assign_labels.labels{assign_labels.cur_track_num}.label)),1);
+  set(handles.label_popup,'value',label_indx+1);
 end
+
+set(handles.frame_text,'string',...
+  num2str(assign_labels.tracks{assign_labels.cur_track_num}.rating.frame));
+set(handles.length_text,'string',num2str(length(track_points)));
+set(handles.rating_text,'string',...
+  num2str(assign_labels.tracks{assign_labels.cur_track_num}.rating.spd_var ...
+  * assign_labels.tracks{assign_labels.cur_track_num}.rating.dir_var * 1e12,...
+  '%3.0f'));
 
 labels = [assign_labels.labels{...
   ~cellfun(@isempty,assign_labels.labels)}];
@@ -161,8 +183,8 @@ plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
   '-o','color',track_color,'markersize',8);
 if ~isempty(labels)
   for LT = 1:length(labels)
-    LT_points = reshape([labels(LT).track.point],3,...
-      length([labels(LT).track.point])/3)';
+    LT_points = reshape([labels(LT).track.points.point],3,...
+      length([labels(LT).track.points.point])/3)';
     plot3(LT_points(:,1),LT_points(:,2),LT_points(:,3),...
       '-o','color',labeled_colors(LT),'markersize',8);
   end
@@ -198,17 +220,19 @@ disp('Select point to zoom on and label, then press enter');
 pause
 c_info = getCursorInfo(dcm_obj);
 
-merged_tracks=cell2mat(assign_labels.tracks);
+all_tracks=cell2mat(assign_labels.tracks);
+merged_tracks=[all_tracks.points];
 merged_track_points = reshape([merged_tracks.point],3,length([merged_tracks.point])/3)';
 
 point_diff = merged_track_points - ones(length(merged_track_points),1)*c_info.Position;
 [M find_indx]=min(distance([0 0 0],point_diff));
-track_lengths = cellfun(@length,assign_labels.tracks);
+track_lengths = cellfun(@(c) length(c.points),assign_labels.tracks);
 track_indx = find(cumsum(track_lengths) - find_indx >= 0,1);
 
 change_track_num(track_indx,handles);
 
-update();
+update(handles);
+
 
 function change_track_num(n,handles)
 global assign_labels
@@ -220,18 +244,39 @@ end
 set(handles.track_num_edit,'string',num2str(n));
 assign_labels.cur_track_num=n;
 
+
 function track_labeled(label_string)
 global assign_labels
-assign_labels.labels{assign_labels.cur_track_num}.label = label_string;
-
 LI_indx = find(~cellfun(@isempty,...
   strfind({assign_labels.label_items.markers.name},label_string)),1);
 
-assign_labels.labels{assign_labels.cur_track_num}.color = ...
-  assign_labels.label_items.markers(LI_indx).color;
-assign_labels.labels{assign_labels.cur_track_num}.track = ...
-  assign_labels.tracks{assign_labels.cur_track_num};
-update();
+if ~isempty(LI_indx)
+  assign_labels.labels{assign_labels.cur_track_num}.color = ...
+    assign_labels.label_items.markers(LI_indx).color;
+  assign_labels.labels{assign_labels.cur_track_num}.track = ...
+    assign_labels.tracks{assign_labels.cur_track_num};
+  assign_labels.labels{assign_labels.cur_track_num}.label = label_string;
+else
+  assign_labels.labels{assign_labels.cur_track_num}=[];
+end
+
+
+function sort_tracks(sort_type,handles)
+global assign_labels
+switch sort_type
+  case 'rating'
+    sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
+  case 'frame'
+    sort_value = cellfun(@(c) c.rating.frame,assign_labels.tracks);
+end
+[B,IX] = sort(sort_value);
+assign_labels.tracks = assign_labels.tracks(IX);
+assign_labels.labels = assign_labels.labels(IX);
+change_track_num(find(IX==assign_labels.cur_track_num,1),handles)
+
+
+
+
 
 
 % --- Outputs from this function are returned to the command line.
@@ -280,7 +325,7 @@ function track_num_edit_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 change_track_num(str2double(get(hObject,'String')),handles);
-update();
+update(handles);
 
 % Hints: get(hObject,'String') returns contents of track_num_edit as text
 %        str2double(get(hObject,'String')) returns contents of track_num_edit as a double
@@ -313,7 +358,7 @@ function track_num_up_button_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 change_track_num(str2double(get(handles.track_num_edit,'String'))+1,handles);
-update();
+update(handles);
 
 % --- Executes on button press in track_num_down_button.
 function track_num_down_button_Callback(hObject, eventdata, handles)
@@ -321,7 +366,7 @@ function track_num_down_button_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 change_track_num(str2double(get(handles.track_num_edit,'String'))-1,handles);
-update();
+update(handles);
 
 % --- Executes when user attempts to close GUI.
 function figure1_CloseRequestFcn(hObject, eventdata, handles)
@@ -344,6 +389,7 @@ function label_popup_Callback(hObject, eventdata, handles)
 %        contents{get(hObject,'Value')} returns selected item from label_popup
 contents = cellstr(get(hObject,'String'));
 track_labeled(contents{get(hObject,'Value')});
+update(handles);
 
 % --- Executes during object creation, after setting all properties.
 function label_popup_CreateFcn(hObject, eventdata, handles)
@@ -370,3 +416,20 @@ function manage_label_items_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 manage_label_items();
+
+
+% --- Executes when selected object is changed in sort_panel.
+function sort_panel_SelectionChangeFcn(hObject, eventdata, handles)
+% hObject    handle to the selected object in sort_panel 
+% eventdata  structure with the following fields (see UIBUTTONGROUP)
+%	EventName: string 'SelectionChanged' (read only)
+%	OldValue: handle of the previously selected object or empty if none was selected
+%	NewValue: handle of the currently selected object
+% handles    structure with handles and user data (see GUIDATA)
+if get(handles.rating_sort,'value')
+  sort_type = 'rating';
+else
+  sort_type = 'frame';
+end
+sort_tracks(sort_type,handles);
+update(handles);

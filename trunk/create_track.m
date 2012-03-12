@@ -1,6 +1,6 @@
 %connecting points, frame by frame
 %unlabeled_bat - cell array which contains all unlabled points at each frame
-function [track ending] = create_track(frame,point,unlabeled_bat,max_length)
+function [track endings] = create_track(frame,point,unlabeled_bat,max_length)
 % function track = create_track(track,d3_analysed,frame,point,direction)
 
 if nargin == 4
@@ -14,7 +14,7 @@ end
 track=[start_track end_track];
 track = remove_duplicate_frames(track);
 
-ending = [start_ending end_ending];
+endings = [start_ending end_ending];
 
 % track = remove_duplicate_points(track);
 
