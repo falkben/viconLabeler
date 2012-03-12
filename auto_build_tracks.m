@@ -18,7 +18,6 @@ sorted_points=reshape([sorted_rating.point],3,length([sorted_rating.point])/3)';
 
 k=1;
 tracks={};
-endings={};
 points=sorted_points;
 unlabeled_bat = d3_analysed.unlabeled_bat;
 while length(points) >= .1*length(sorted_points)
@@ -29,13 +28,17 @@ while length(points) >= .1*length(sorted_points)
 %     length([sorted_rating(rindx).track.point])/3)';
 %   if points_in_unlabeled(unlabeled_bat,r_track_points,...
 %       [sorted_rating(rindx).track.frame])
-    [tracks{k} endings{k}] = create_track(frame,point,unlabeled_bat);
-        
-    track_points = reshape([tracks{k}.point],3,length([tracks{k}.point])/3)';
-    [r i]=setxor(points,track_points,'rows');
+  [track endings] = create_track(frame,point,unlabeled_bat);
+  
+  tracks{k}.points = track;
+  tracks{k}.endings = endings;
+  tracks{k}.rating = sorted_rating(rindx);
+  
+  track_points = reshape([tracks{k}.points.point],3,length([tracks{k}.points.point])/3)';
+  [r i]=setxor(points,track_points,'rows');
 %     track_frames = [tracks{k}.frame];
-    points = points(sort(i),:);
-    k=k+1;
+  points = points(sort(i),:);
+  k=k+1;
 %   else
 %     track_points = point;
 %     track_frames = frame;
@@ -50,16 +53,17 @@ if DIAG
   close all;
   figure(3); clf; hold on;
   for k=1:length(tracks)
-    track = tracks{k};
+    track = tracks{k}.points;
+    endings = tracks{k}.ending;
     track_points = reshape([track.point],3,length([track.point])/3)';
 
 %     plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
 %       'color',colors(rem(k,length(colors))+1),'linewidth',3);
-    if ~isempty(strfind(endings{k},'spd')) && isempty(strfind(endings{k},'dir'))
+    if ~isempty(strfind(endings,'spd')) && isempty(strfind(endings,'dir'))
       col='r';
-    elseif ~isempty(strfind(endings{k},'dir')) && isempty(strfind(endings{k},'spd'))
+    elseif ~isempty(strfind(endings,'dir')) && isempty(strfind(endings,'spd'))
       col='b';
-    elseif ~isempty(strfind(endings{k},'dir')) && ~isempty(strfind(endings{k},'spd'))
+    elseif ~isempty(strfind(endings,'dir')) && ~isempty(strfind(endings,'spd'))
       col='m';
     else
       col='g';
