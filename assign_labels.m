@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 12-Mar-2012 16:58:50
+% Last Modified by GUIDE v2.5 13-Mar-2012 17:27:57
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -78,6 +78,7 @@ if ~isequal(fn,0)
   setpref('vicon_labeler','ratings',pn);
   assign_labels=[];
   load([pn fn]);
+  disp('Building tracks... this can take some time');
   tracks = auto_build_tracks(label_ratings.d3_analysed,label_ratings.rating);
   assign_labels.tracks = tracks;
   assign_labels.d3_analysed = label_ratings.d3_analysed;
@@ -126,9 +127,12 @@ set(handles.refocus_button,'enable','on');
 set(handles.full_trial_radio,'enable','on');
 set(handles.zoomed_radio,'enable','on');
 set(handles.label_popup,'enable','on');
-set(handles.rating_sort,'enable','on');
+set(handles.orig_rating_sort,'enable','on');
 set(handles.frame_sort,'enable','on');
-set(handles.rating_sort,'value',1);
+set(handles.cur_rating_sort,'enable','on');
+set(handles.length_sort,'enable','on');
+set(handles.advance_checkbox,'enable','on');
+set(handles.orig_rating_sort,'value',1);
 
 load_label_items(handles);
 
@@ -159,15 +163,35 @@ end
 set(handles.frame_text,'string',...
   num2str(assign_labels.tracks{assign_labels.cur_track_num}.rating.frame));
 set(handles.length_text,'string',num2str(length(track_points)));
+
+[sm_speed dir] = get_track_vel(track);
+spd_var = var(sm_speed);
+dir_var = var(dir);
+
 set(handles.rating_text,'string',...
-  num2str(assign_labels.tracks{assign_labels.cur_track_num}.rating.spd_var ...
-  * assign_labels.tracks{assign_labels.cur_track_num}.rating.dir_var * 1e12,...
-  '%3.0f'));
+  num2str((spd_var) * (dir_var),...
+  '%0.6f'));
+set(handles.spd_text,'string',...
+  num2str(spd_var,'%0.3f'));
+set(handles.dir_text,'string',...
+  num2str(dir_var,'%0.3f'));
 
 labels = [assign_labels.labels{...
   ~cellfun(@isempty,assign_labels.labels)}];
 if ~isempty(labels)
   labeled_colors = [labels.color];
+end
+
+lab_tracks_in_zoom = {};
+lab_clrs_in_zoom = {};
+for lab=1:length(labels)
+  lab_track = labels(lab).track.points;
+  lab_frames = [lab_track.frame];
+  isect_lab_track = intersect(lab_frames,track_frames);
+  if ~isempty(isect_lab_track)
+    lab_tracks_in_zoom{end+1} = lab_track;
+    lab_clrs_in_zoom{end+1} = labels(lab).color;
+  end
 end
 
 scrn_size=get(0,'ScreenSize');
@@ -202,6 +226,12 @@ plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
   '-o','color',track_color,'markersize',8);
 plot3(unlab_near_track(:,1),unlab_near_track(:,2),unlab_near_track(:,3),...
   'ok','markersize',3,'markerfacecolor','k');
+for lab=1:length(lab_tracks_in_zoom)
+  lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
+    length([lab_tracks_in_zoom{lab}.point])/3)';
+  plot3(lab_points(:,1),lab_points(:,2),lab_points(:,3),...
+    '-o','color',lab_clrs_in_zoom{lab},'markersize',8);
+end
 axis vis3d;
 view([az,el]);
 grid on;
@@ -220,16 +250,39 @@ disp('Select point to zoom on and label, then press enter');
 pause
 c_info = getCursorInfo(dcm_obj);
 
-all_tracks=cell2mat(assign_labels.tracks);
-merged_tracks=[all_tracks.points];
-merged_track_points = reshape([merged_tracks.point],3,length([merged_tracks.point])/3)';
+if ~isempty(c_info)
 
-point_diff = merged_track_points - ones(length(merged_track_points),1)*c_info.Position;
-[M find_indx]=min(distance([0 0 0],point_diff));
-track_lengths = cellfun(@(c) length(c.points),assign_labels.tracks);
-track_indx = find(cumsum(track_lengths) - find_indx >= 0,1);
+  all_tracks=cell2mat(assign_labels.tracks);
+  merged_tracks=[all_tracks.points];
+  merged_track_points = reshape([merged_tracks.point],3,length([merged_tracks.point])/3)';
 
-change_track_num(track_indx,handles);
+  point_diff = merged_track_points - ones(length(merged_track_points),1)*c_info.Position;
+  [M find_indx]=min(distance([0 0 0],point_diff));
+
+  point = merged_track_points(find_indx,:);
+  ia=find(ismember(merged_track_points,point,'rows'));
+
+  track_lengths = cellfun(@(c) length(c.points),assign_labels.tracks);
+
+  if length(ia) == 1
+    track_indx = find(cumsum(track_lengths) - ia >= 0,1);
+  else %choose the one with the best rating
+    for k=1:length(ia)
+      t_indx = find(cumsum(track_lengths) - ia(k) >= 0,1);
+      track = assign_labels.tracks{t_indx};
+
+      [sm_speed dir] = get_track_vel(track.points);
+      spd_var = var(sm_speed);
+      dir_var = var(dir);
+      rating(k)=spd_var*dir_var;
+    end
+    [M best_rating] = min(rating);
+    track_indx = find(cumsum(track_lengths) - ia(best_rating) >= 0,1);
+  end
+    
+  change_track_num(track_indx,handles);
+
+end
 
 update(handles);
 
@@ -264,10 +317,17 @@ end
 function sort_tracks(sort_type,handles)
 global assign_labels
 switch sort_type
-  case 'rating'
+  case 'orig_rating'
     sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
   case 'frame'
     sort_value = cellfun(@(c) c.rating.frame,assign_labels.tracks);
+  case 'cur_rating'
+    [spd dir]=cellfun(@(c) get_track_vel(c.points), assign_labels.tracks,...
+      'uniformoutput',0);
+    sort_value = cellfun(@var,spd) .* cellfun(@var,dir);
+  case 'length'
+    sort_value = 1./cell2mat(cellfun(@(c) length(c.points), assign_labels.tracks,...
+      'uniformoutput',0));
 end
 [B,IX] = sort(sort_value);
 assign_labels.tracks = assign_labels.tracks(IX);
@@ -389,6 +449,9 @@ function label_popup_Callback(hObject, eventdata, handles)
 %        contents{get(hObject,'Value')} returns selected item from label_popup
 contents = cellstr(get(hObject,'String'));
 track_labeled(contents{get(hObject,'Value')});
+if get(handles.advance_checkbox,'value')
+  change_track_num(str2double(get(handles.track_num_edit,'String'))+1,handles);
+end
 update(handles);
 
 % --- Executes during object creation, after setting all properties.
@@ -426,10 +489,23 @@ function sort_panel_SelectionChangeFcn(hObject, eventdata, handles)
 %	OldValue: handle of the previously selected object or empty if none was selected
 %	NewValue: handle of the currently selected object
 % handles    structure with handles and user data (see GUIDATA)
-if get(handles.rating_sort,'value')
-  sort_type = 'rating';
-else
+if get(handles.orig_rating_sort,'value')
+  sort_type = 'orig_rating';
+elseif get(handles.frame_sort,'value')
   sort_type = 'frame';
+elseif get(handles.cur_rating_sort,'value')
+  sort_type = 'cur_rating';
+elseif get(handles.length_sort,'value')
+  sort_type = 'length';
 end
 sort_tracks(sort_type,handles);
 update(handles);
+
+
+% --- Executes on button press in advance_checkbox.
+function advance_checkbox_Callback(hObject, eventdata, handles)
+% hObject    handle to advance_checkbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of advance_checkbox
