@@ -33,6 +33,9 @@ while frame+(f+1)*direction >= 1 && frame+(f+1)*direction <= length(unlabeled_ba
     ( isempty(sub_length) || length(track) < sub_length )
   f = f+1;
   other_points = unlabeled_bat{frame+f*direction};
+%   other_points = setdiff(other_points,last_point,'rows'); %prevents
+%   duplicate points, but sometimes duplicate points are preferrable to
+%   tracks that zig-zag around between tracks
   D = distance(last_point,other_points);
   [M p]=min(D);
   

@@ -148,7 +148,7 @@ else
     setpref('vicon_labeler','label_items',pn);
   end
 end
-[fn, pn] = uiputfile('*.mat','Save label items',label_items.name);
+[fn, pn] = uiputfile([pn '*.mat'],'Save label items',label_items.name);
 if isequal(fn,0) || isequal(pn,0)
   return;
 else
