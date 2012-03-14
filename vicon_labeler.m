@@ -24,7 +24,7 @@ if nargin < 1
   else
     pn=[];
   end
-  [filename pathname] = uigetfile('*.mat','Pick c3d file to label',pn);
+  [filename pathname] = uigetfile('*.mat','Pick file for labeling (rated files folder)',pn);
   if isequal(filename,0)
     return;
   end
