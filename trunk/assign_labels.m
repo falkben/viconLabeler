@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 14-Mar-2012 17:46:31
+% Last Modified by GUIDE v2.5 15-Mar-2012 12:40:25
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -95,7 +95,7 @@ if ~isequal(fn,0)
     assign_labels.label_items = label_ratings.label_items;
     set(handles.label_popup,'string',{'' label_ratings.label_items.markers.name});
     sort_tracks('orig_rating',handles);
-    change_track_num(1,handles);
+    change_track_num(1);
   end
   initialize(handles);
   update(handles);
@@ -156,7 +156,7 @@ set(handles.rebuild_current_track,'enable','on');
 set(handles.rebuild_all_tracks,'enable','on');
 set(handles.animate_button,'enable','on');
 set(handles.save_animation,'enable','on');
-% set(handles.plot_stationary_checkbox,'enable','on');
+set(handles.next_unlabeled,'enable','on');
 set(handles.orig_rating_sort,'value',1);
 
 figure(1); view(3);
@@ -182,6 +182,8 @@ else
     assign_labels.labels{assign_labels.cur_track_num}.label)),1);
   set(handles.label_popup,'value',label_indx+1);
 end
+
+set(handles.track_num_edit,'string',num2str(assign_labels.cur_track_num));
 
 set(handles.frame_text,'string',...
   num2str(assign_labels.tracks{assign_labels.cur_track_num}.rating.frame));
@@ -227,13 +229,13 @@ hold on;
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),...
   'ok','markersize',3,'markerfacecolor','k');
 plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
-  '-o','color',track_color,'markersize',8);
+  '-o','color',track_color,'markersize',11,'linewidth',2);
 if ~isempty(labels)
   for LT = 1:length(labels)
     LT_points = reshape([labels(LT).track.points.point],3,...
       length([labels(LT).track.points.point])/3)';
     plot3(LT_points(:,1),LT_points(:,2),LT_points(:,3),...
-      '-o','color',labeled_colors(LT),'markersize',8);
+      '-o','color',labeled_colors(LT),'markersize',7);
   end
 end
 
@@ -257,14 +259,14 @@ clf;
 set(gcf,'position',[30+.3*scrn_size(3) .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)]);
 hold on;
 plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
-  '-o','color',track_color,'markersize',8);
+  '-o','color',track_color,'markersize',11,'linewidth',2);
 plot3(unlab_near_track(:,1),unlab_near_track(:,2),unlab_near_track(:,3),...
   'ok','markersize',3,'markerfacecolor','k');
 for lab=1:length(lab_tracks_in_zoom)
   lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
     length([lab_tracks_in_zoom{lab}.point])/3)';
   plot3(lab_points(:,1),lab_points(:,2),lab_points(:,3),...
-    '-o','color',lab_clrs_in_zoom{lab},'markersize',8);
+    '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
 end
 text(track_points(1,1),track_points(1,2),track_points(1,3)+.15,...
   'START');
@@ -318,22 +320,28 @@ if ~isempty(c_info)
     track_indx = find(cumsum(track_lengths) - ia(best_rating) >= 0,1);
   end
     
-  change_track_num(track_indx,handles);
+  change_track_num(track_indx);
 
 end
 
 update(handles);
 
 
-function change_track_num(n,handles)
+function change_track_num(n)
 global assign_labels
 if n < 1
   n=1;
 elseif n > length(assign_labels.tracks)
   n=length(assign_labels.tracks);
 end
-set(handles.track_num_edit,'string',num2str(n));
 assign_labels.cur_track_num=n;
+
+
+function find_next_unlabeled()
+global assign_labels
+cur_track_num = assign_labels.cur_track_num;
+first_empty_label=find(cellfun(@isempty,assign_labels.labels(cur_track_num+1:end)),1);
+change_track_num(cur_track_num+first_empty_label);
 
 
 function track_labeled(label_string)
@@ -370,7 +378,7 @@ end
 [B,IX] = sort(sort_value);
 assign_labels.tracks = assign_labels.tracks(IX);
 assign_labels.labels = assign_labels.labels(IX);
-change_track_num(find(IX==assign_labels.cur_track_num,1),handles)
+change_track_num(find(IX==assign_labels.cur_track_num,1))
 
 
 function crop_track(handles,crop_side)
@@ -423,7 +431,7 @@ save([pn fn],'label_ratings');
 disp('Saved');
 
 
-function animate_zoom()
+function animate_zoom(saving)
 global assign_labels
 
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
@@ -443,19 +451,19 @@ unlab_near_track = unlabeled_bat(track_frames);
 
 figure(2);
 [az,el] = view;
-a=axis;
 
-saving=0;
-if get(handles.save_animation,'value')
-  saving=1;
-  vid_frate = assign_labels.d3_analysed.fvideo / 10;
-  fname = ['track' num2str(assign_labels.cur_track_num) '.avi'];
+if saving
+  vid_frate = assign_labels.d3_analysed.fvideo / 20;
+  fname = [assign_labels.d3_analysed.trialcode '_track_' num2str(assign_labels.cur_track_num) '.avi'];
   [status, result] = dos('echo %USERPROFILE%\Desktop');
   pn = result;
-  aviobj = avifile([pn fname],'compression','None','Fps',vid_frate);
+  aviobj = avifile([pn(1:end-1) '\' fname],'compression','None','Fps',vid_frate);
 end
 
-figure(3);
+figure(3);clf;
+all_points=cell2mat(unlabeled_bat(track_frames));
+plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
+a=axis;
 for k=1:size(track_points,1)
   clf; hold on;
   plot3(track_points(k,1),track_points(k,2),track_points(k,3),...
@@ -466,6 +474,7 @@ for k=1:size(track_points,1)
     'START');
   text(track_points(end,1),track_points(end,2),track_points(end,3)+.15,...
     'END');
+  text(a(1),a(3),num2str(track_frames(k)));
   axis(a);
   axis vis3d;
   view([az,el]);
@@ -480,7 +489,7 @@ end
 
 if saving
   aviobj = close(aviobj);
-  system(['explorer.exe ' pn fn])
+  system(['explorer.exe /select,' pn(1:end-1) '\' fname])
   %encode the file
 end
 
@@ -544,19 +553,16 @@ end
 
 [FileName,PathName] = uiputfile('*.mat',[],[pn assign_labels.ratings_filename]);
 if isequal(FileName,0) || isequal(PathName,0)
-   return;
+ return;
 else
-   save_trial(FileName,PathName);
+ save_trial(FileName,PathName);
 end
-
-
-
 
 function track_num_edit_Callback(hObject, eventdata, handles)
 % hObject    handle to track_num_edit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-change_track_num(str2double(get(hObject,'String')),handles);
+change_track_num(str2double(get(hObject,'String')));
 update(handles);
 
 % Hints: get(hObject,'String') returns contents of track_num_edit as text
@@ -589,7 +595,7 @@ function track_num_up_button_Callback(hObject, eventdata, handles)
 % hObject    handle to track_num_up_button (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-change_track_num(str2double(get(handles.track_num_edit,'String'))+1,handles);
+change_track_num(str2double(get(handles.track_num_edit,'String'))+1);
 update(handles);
 
 % --- Executes on button press in track_num_down_button.
@@ -597,7 +603,7 @@ function track_num_down_button_Callback(hObject, eventdata, handles)
 % hObject    handle to track_num_down_button (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-change_track_num(str2double(get(handles.track_num_edit,'String'))-1,handles);
+change_track_num(str2double(get(handles.track_num_edit,'String'))-1);
 update(handles);
 
 % --- Executes when user attempts to close GUI.
@@ -605,9 +611,12 @@ function figure1_CloseRequestFcn(hObject, eventdata, handles)
 % hObject    handle to figure1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+global assign_labels
+assign_labels = [];
 
 % Hint: delete(hObject) closes the figure
 delete(hObject);
+
 close all;
 
 
@@ -622,7 +631,7 @@ function label_popup_Callback(hObject, eventdata, handles)
 contents = cellstr(get(hObject,'String'));
 track_labeled(contents{get(hObject,'Value')});
 if get(handles.advance_checkbox,'value')
-  change_track_num(str2double(get(handles.track_num_edit,'String'))+1,handles);
+  change_track_num(str2double(get(handles.track_num_edit,'String'))+1);
 end
 update(handles);
 
@@ -739,19 +748,28 @@ function edit_end_point_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 crop_track(handles,'end');
 
-% --- Executes on button press in plot_stationary_checkbox.
-function plot_stationary_checkbox_Callback(hObject, eventdata, handles)
-% hObject    handle to plot_stationary_checkbox (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of plot_stationary_checkbox
-update(handles);
-
 
 % --- Executes on button press in animate_button.
 function animate_button_Callback(hObject, eventdata, handles)
 % hObject    handle to animate_button (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-animate_zoom();
+animate_zoom(get(handles.save_animation,'value'));
+
+
+% --- Executes on button press in save_animation.
+function save_animation_Callback(hObject, eventdata, handles)
+% hObject    handle to save_animation (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of save_animation
+
+
+% --- Executes on button press in next_unlabeled.
+function next_unlabeled_Callback(hObject, eventdata, handles)
+% hObject    handle to next_unlabeled (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+find_next_unlabeled();
+update(handles);
