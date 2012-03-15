@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 15-Mar-2012 12:40:25
+% Last Modified by GUIDE v2.5 15-Mar-2012 17:23:50
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -93,7 +93,11 @@ if ~isequal(fn,0)
     assign_labels.tracks = label_ratings.tracks;
     assign_labels.labels = label_ratings.labels;
     assign_labels.label_items = label_ratings.label_items;
-    set(handles.label_popup,'string',{'' label_ratings.label_items.markers.name});
+    markers = label_ratings.label_items.markers;
+    for k=1:length(markers)
+      label_popup_txt{k}=[markers(k).name ': ' markers(k).color];
+    end
+    set(handles.label_popup,'string',[{''} label_popup_txt]);
     sort_tracks('orig_rating',handles);
     change_track_num(1);
   end
@@ -124,7 +128,11 @@ if ~isequal(fn,0)
   setpref('vicon_labeler','label_items',pn);
   LI=load([pn fn]);
   assign_labels.label_items = LI.label_items;
-  set(handles.label_popup,'string',{'' LI.label_items.markers.name});
+  markers = LI.label_items.markers;
+  for k=1:length(markers)
+    label_popup_txt{k}=[markers(k).name ': ' markers(k).color];
+  end
+  set(handles.label_popup,'string',[{''} label_popup_txt]);
 else
   manage_label_items();
   load_label_items(handles);
@@ -157,6 +165,11 @@ set(handles.rebuild_all_tracks,'enable','on');
 set(handles.animate_button,'enable','on');
 set(handles.save_animation,'enable','on');
 set(handles.next_unlabeled,'enable','on');
+set(handles.pts_before,'enable','on');
+set(handles.pts_after,'enable','on');
+
+set(handles.pts_before,'string','0');
+set(handles.pts_after,'string','0');
 set(handles.orig_rating_sort,'value',1);
 
 figure(1); view(3);
@@ -171,8 +184,12 @@ all_points(all_points(:,1)==0,:) = [];
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 track_points = reshape([track.point],3,length([track.point])/3)';
 track_frames = [track.frame];
-unlab_near_track = cell2mat(unlabeled_bat(track_frames));
+
+plotting_frames = track_frames(1)-str2double(get(handles.pts_before,'string')):...
+  track_frames(end)+str2double(get(handles.pts_after,'string'));
+unlab_near_track = cell2mat(unlabeled_bat(plotting_frames));
 unlab_near_track(unlab_near_track(:,1)==0,:) = [];
+
 if isempty(assign_labels.labels{assign_labels.cur_track_num})
   track_color = [.5 .5 .5];
   set(handles.label_popup,'value',1);
@@ -183,26 +200,9 @@ else
   set(handles.label_popup,'value',label_indx+1);
 end
 
-set(handles.track_num_edit,'string',num2str(assign_labels.cur_track_num));
+set_track_info(handles);
 
-set(handles.frame_text,'string',...
-  num2str(assign_labels.tracks{assign_labels.cur_track_num}.rating.frame));
-set(handles.length_text,'string',num2str(length(track_points)));
-
-[sm_speed dir] = get_track_vel(track);
-spd_var = var(sm_speed);
-dir_var = var(dir);
-
-set(handles.rating_text,'string',...
-  num2str((spd_var) * (dir_var),...
-  '%0.6f'));
-set(handles.spd_text,'string',...
-  num2str(spd_var,'%0.3f'));
-set(handles.dir_text,'string',...
-  num2str(dir_var,'%0.3f'));
-
-labels = [assign_labels.labels{...
-  ~cellfun(@isempty,assign_labels.labels)}];
+labels = [assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}];
 if ~isempty(labels)
   labeled_colors = [labels.color];
 end
@@ -212,7 +212,7 @@ lab_clrs_in_zoom = {};
 for lab=1:length(labels)
   lab_track = labels(lab).track.points;
   lab_frames = [lab_track.frame];
-  isect_lab_track = intersect(lab_frames,track_frames);
+  isect_lab_track = intersect(lab_frames,plotting_frames);
   if ~isempty(isect_lab_track)
     lab_tracks_in_zoom{end+1} = lab_track;
     lab_clrs_in_zoom{end+1} = labels(lab).color;
@@ -230,7 +230,8 @@ plot3(all_points(:,1),all_points(:,2),all_points(:,3),...
   'ok','markersize',3,'markerfacecolor','k');
 plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
   '-o','color',track_color,'markersize',11,'linewidth',2);
-if ~isempty(labels)
+
+if ~isempty(labels) %plotting all the labeled tracks
   for LT = 1:length(labels)
     LT_points = reshape([labels(LT).track.points.point],3,...
       length([labels(LT).track.points.point])/3)';
@@ -263,9 +264,11 @@ plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
 plot3(unlab_near_track(:,1),unlab_near_track(:,2),unlab_near_track(:,3),...
   'ok','markersize',3,'markerfacecolor','k');
 for lab=1:length(lab_tracks_in_zoom)
+  lab_frames = [lab_tracks_in_zoom{lab}.frame];
+  [c ia]=intersect(lab_frames,plotting_frames);
   lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
     length([lab_tracks_in_zoom{lab}.point])/3)';
-  plot3(lab_points(:,1),lab_points(:,2),lab_points(:,3),...
+  plot3(lab_points(ia,1),lab_points(ia,2),lab_points(ia,3),...
     '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
 end
 text(track_points(1,1),track_points(1,2),track_points(1,3)+.15,...
@@ -275,6 +278,27 @@ text(track_points(end,1),track_points(end,2),track_points(end,3)+.15,...
 axis vis3d;
 view([az,el]);
 grid on;
+
+function set_track_info(handles)
+global assign_labels
+set(handles.track_num_edit,'string',num2str(assign_labels.cur_track_num));
+
+set(handles.frame_text,'string',...
+  num2str(assign_labels.tracks{assign_labels.cur_track_num}.rating.frame));
+set(handles.length_text,'string',...
+  num2str(length(assign_labels.tracks{assign_labels.cur_track_num}.points)));
+
+[sm_speed dir] = get_track_vel(assign_labels.tracks{assign_labels.cur_track_num}.points);
+spd_var = var(sm_speed);
+dir_var = var(dir);
+
+set(handles.rating_text,'string',...
+  num2str((spd_var) * (dir_var),...
+  '%0.6f'));
+set(handles.spd_text,'string',...
+  num2str(spd_var,'%0.3f'));
+set(handles.dir_text,'string',...
+  num2str(dir_var,'%0.3f'));
 
 function refocus(handles)
 global assign_labels
@@ -344,21 +368,21 @@ first_empty_label=find(cellfun(@isempty,assign_labels.labels(cur_track_num+1:end
 change_track_num(cur_track_num+first_empty_label);
 
 
-function track_labeled(label_string)
+function track_labeled(selected_label_item)
 global assign_labels
-LI_indx = find(~cellfun(@isempty,...
-  strfind({assign_labels.label_items.markers.name},label_string)),1);
 
-if ~isempty(LI_indx)
+LI_indx = selected_label_item - 1;
+
+if LI_indx > 0
   assign_labels.labels{assign_labels.cur_track_num}.color = ...
     assign_labels.label_items.markers(LI_indx).color;
   assign_labels.labels{assign_labels.cur_track_num}.track = ...
     assign_labels.tracks{assign_labels.cur_track_num};
-  assign_labels.labels{assign_labels.cur_track_num}.label = label_string;
+  assign_labels.labels{assign_labels.cur_track_num}.label = ...
+    assign_labels.label_items.markers(LI_indx).name;
 else
   assign_labels.labels{assign_labels.cur_track_num}=[];
 end
-
 
 function sort_tracks(sort_type,handles)
 global assign_labels
@@ -428,7 +452,7 @@ label_ratings = assign_labels;
 label_ratings.ratings_pathname = pn;
 label_ratings.ratings_filename = fn;
 save([pn fn],'label_ratings');
-disp('Saved');
+disp(['Saved at: ' datestr(now,14)]);
 
 
 function animate_zoom(saving)
@@ -628,8 +652,7 @@ function label_popup_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns label_popup contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from label_popup
-contents = cellstr(get(hObject,'String'));
-track_labeled(contents{get(hObject,'Value')});
+track_labeled(get(hObject,'Value'));
 if get(handles.advance_checkbox,'value')
   change_track_num(str2double(get(handles.track_num_edit,'String'))+1);
 end
@@ -773,3 +796,55 @@ function next_unlabeled_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 find_next_unlabeled();
 update(handles);
+
+
+
+function pts_before_Callback(hObject, eventdata, handles)
+% hObject    handle to pts_before (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of pts_before as text
+%        str2double(get(hObject,'String')) returns contents of pts_before as a double
+if str2double(get(hObject,'String')) < 0
+  set(hObject,'String','0');
+end
+update(handles);
+
+% --- Executes during object creation, after setting all properties.
+function pts_before_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to pts_before (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function pts_after_Callback(hObject, eventdata, handles)
+% hObject    handle to pts_after (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of pts_after as text
+%        str2double(get(hObject,'String')) returns contents of pts_after as a double
+if str2double(get(hObject,'String')) < 0
+  set(hObject,'String','0');
+end
+update(handles);
+
+% --- Executes during object creation, after setting all properties.
+function pts_after_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to pts_after (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
