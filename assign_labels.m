@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 15-Mar-2012 17:23:50
+% Last Modified by GUIDE v2.5 16-Mar-2012 13:34:11
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -227,8 +227,8 @@ end
 unlabeled_empty = cellfun(@(c) ~isempty(find(c, 1)),unlabeled_bat);
 first_frame_with_points = find(unlabeled_empty,1);
 last_frame_with_points = find(unlabeled_empty,1,'last');
-trial_start_loc = mean(unlabeled_bat{first_frame_with_points});
-trial_end_loc = mean(unlabeled_bat{last_frame_with_points});
+trial_start_loc = mean(unlabeled_bat{first_frame_with_points},1);
+trial_end_loc = mean(unlabeled_bat{last_frame_with_points},1);
 text(trial_start_loc(1),trial_start_loc(2)-.2,trial_start_loc(3)+.2,...
   'START');
 text(trial_end_loc(1)+.2,trial_end_loc(2),trial_end_loc(3)+.2,...
@@ -458,6 +458,8 @@ function [labels labeled_colors lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_
 labels = [all_labels{~cellfun(@isempty,all_labels)}];
 if ~isempty(labels)
   labeled_colors = [labels.color];
+else
+  labeled_colors = [];
 end
 
 lab_tracks_in_zoom = {};
@@ -881,3 +883,13 @@ function pts_after_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --------------------------------------------------------------------
+function close_GUI_Callback(hObject, eventdata, handles)
+% hObject    handle to close_GUI (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global assign_labels
+assign_labels = [];
+close all;
