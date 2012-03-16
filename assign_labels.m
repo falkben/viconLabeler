@@ -182,42 +182,26 @@ all_points = cell2mat(unlabeled_bat);
 all_points(all_points(:,1)==0,:) = [];
 
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
-track_points = reshape([track.point],3,length([track.point])/3)';
-track_frames = [track.frame];
+[track_points track_frames] = get_track_points_frames(track);
 
-plotting_frames = track_frames(1)-str2double(get(handles.pts_before,'string')):...
-  track_frames(end)+str2double(get(handles.pts_after,'string'));
+plotting_frames = determine_plotting_frames(handles,track_frames);
 unlab_near_track = cell2mat(unlabeled_bat(plotting_frames));
 unlab_near_track(unlab_near_track(:,1)==0,:) = [];
 
-if isempty(assign_labels.labels{assign_labels.cur_track_num})
-  track_color = [.5 .5 .5];
-  set(handles.label_popup,'value',1);
-else
-  track_color = assign_labels.labels{assign_labels.cur_track_num}.color;
+track_color= get_track_color(assign_labels.labels{assign_labels.cur_track_num});
+
+if ~isempty(assign_labels.labels{assign_labels.cur_track_num})
   label_indx = find(~cellfun(@isempty,strfind({assign_labels.label_items.markers.name},...
-    assign_labels.labels{assign_labels.cur_track_num}.label)),1);
-  set(handles.label_popup,'value',label_indx+1);
+    assign_labels.labels{assign_labels.cur_track_num}.label)),1) + 1;
+else
+  label_indx = 1;
 end
+set(handles.label_popup,'value',label_indx);
 
 set_track_info(handles);
 
-labels = [assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}];
-if ~isempty(labels)
-  labeled_colors = [labels.color];
-end
-
-lab_tracks_in_zoom = {};
-lab_clrs_in_zoom = {};
-for lab=1:length(labels)
-  lab_track = labels(lab).track.points;
-  lab_frames = [lab_track.frame];
-  isect_lab_track = intersect(lab_frames,plotting_frames);
-  if ~isempty(isect_lab_track)
-    lab_tracks_in_zoom{end+1} = lab_track;
-    lab_clrs_in_zoom{end+1} = labels(lab).color;
-  end
-end
+[labels labeled_colors lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
+  assign_labels.labels,plotting_frames);
 
 scrn_size=get(0,'ScreenSize');
 
@@ -424,8 +408,8 @@ if ~isempty(c_info)
   selected_point = c_info.Position;
   
   old_track = assign_labels.tracks{assign_labels.cur_track_num}.points;
-  old_track_points = reshape([old_track.point],3,length([old_track.point])/3)';
-  
+  old_track_points = get_track_points_frames(old_track);
+    
   point_diff = old_track_points - ones(length(old_track_points),1)*selected_point;
   [M find_indx]=min(distance([0 0 0],point_diff));
   
@@ -454,24 +438,58 @@ label_ratings.ratings_filename = fn;
 save([pn fn],'label_ratings');
 disp(['Saved at: ' datestr(now,14)]);
 
+function plotting_frames = determine_plotting_frames(handles,track_frames)
+plotting_frames = track_frames(1)-str2double(get(handles.pts_before,'string')):...
+  track_frames(end)+str2double(get(handles.pts_after,'string'));
 
-function animate_zoom(saving)
+function track_color = get_track_color(label)
+if isempty(label)
+  track_color = [.5 .5 .5];
+else
+  track_color = label.color;
+end
+
+function [track_points track_frames] = get_track_points_frames(track)
+track_points = reshape([track.point],3,length([track.point])/3)';
+track_frames = [track.frame];
+
+function [labels labeled_colors lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(all_labels,plotting_frames)
+
+labels = [all_labels{~cellfun(@isempty,all_labels)}];
+if ~isempty(labels)
+  labeled_colors = [labels.color];
+end
+
+lab_tracks_in_zoom = {};
+lab_clrs_in_zoom = {};
+for lab=1:length(labels)
+  lab_track = labels(lab).track.points;
+  lab_frames = [lab_track.frame];
+  isect_lab_track = intersect(lab_frames,plotting_frames);
+  if ~isempty(isect_lab_track)
+    lab_tracks_in_zoom{end+1} = lab_track;
+    lab_clrs_in_zoom{end+1} = labels(lab).color;
+  end
+end
+
+
+function animate_zoom(saving,handles)
 global assign_labels
 
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
-track_points = reshape([track.point],3,length([track.point])/3)';
-track_frames = [track.frame];
+[track_points track_frames] = get_track_points_frames(track);
+
 unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
 
-if isempty(assign_labels.labels{assign_labels.cur_track_num})
-  track_color = [.5 .5 .5];
-else
-  track_color = assign_labels.labels{assign_labels.cur_track_num}.color;
-  label_indx = find(~cellfun(@isempty,strfind({assign_labels.label_items.markers.name},...
-    assign_labels.labels{assign_labels.cur_track_num}.label)),1);
-end
+plotting_frames = determine_plotting_frames(handles,track_frames);
 
-unlab_near_track = unlabeled_bat(track_frames);
+track_color = get_track_color(assign_labels.labels{assign_labels.cur_track_num});
+
+[labels labeled_colors lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
+  assign_labels.labels,plotting_frames);
+
+unlab_near_track = unlabeled_bat(plotting_frames);
+unlab_near_track=cellfun(@(c) c(c(:,1)~=0,:),unlab_near_track,'uniformoutput',0);
 
 figure(2);
 [az,el] = view;
@@ -485,20 +503,35 @@ if saving
 end
 
 figure(3);clf;
-all_points=cell2mat(unlabeled_bat(track_frames));
+all_points=cell2mat(unlab_near_track);
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
 a=axis;
-for k=1:size(track_points,1)
+for k=1:length(plotting_frames)
   clf; hold on;
-  plot3(track_points(k,1),track_points(k,2),track_points(k,3),...
-    '-o','color',track_color,'markersize',8);
+  
+  frame=plotting_frames(k);
+  track_indx=find(track_frames == frame);
+  if ~isempty(track_indx)
+    plot3(track(track_indx).point(1),track(track_indx).point(2),track(track_indx).point(3),...
+      '-o','color',track_color,'markersize',11,'linewidth',2);
+  end
   plot3(unlab_near_track{k}(:,1),unlab_near_track{k}(:,2),unlab_near_track{k}(:,3),...
     'ok','markersize',3,'markerfacecolor','k');
+  
+  for lab=1:length(lab_tracks_in_zoom)
+    lab_frames = [lab_tracks_in_zoom{lab}.frame];
+    [c ia]=intersect(lab_frames,frame);
+    lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
+      length([lab_tracks_in_zoom{lab}.point])/3)';
+    plot3(lab_points(ia,1),lab_points(ia,2),lab_points(ia,3),...
+      '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
+  end
+  
   text(track_points(1,1),track_points(1,2),track_points(1,3)+.15,...
     'START');
   text(track_points(end,1),track_points(end,2),track_points(end,3)+.15,...
     'END');
-  text(a(1),a(3),num2str(track_frames(k)));
+  text(a(1),a(3),num2str(frame));
   axis(a);
   axis vis3d;
   view([az,el]);
@@ -777,7 +810,7 @@ function animate_button_Callback(hObject, eventdata, handles)
 % hObject    handle to animate_button (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-animate_zoom(get(handles.save_animation,'value'));
+animate_zoom(get(handles.save_animation,'value'),handles);
 
 
 % --- Executes on button press in save_animation.
