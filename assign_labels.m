@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 16-Mar-2012 13:34:11
+% Last Modified by GUIDE v2.5 19-Mar-2012 17:03:57
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -66,6 +66,11 @@ assign_labels=[];
 
 function open_ratings_file(handles)
 global assign_labels
+
+if save_before_discard()
+  return;
+end
+
 if ispref('vicon_labeler','ratings') && ...
     exist(getpref('vicon_labeler','ratings'),'dir')
   pn=getpref('vicon_labeler','ratings');
@@ -89,6 +94,7 @@ if ~isequal(fn,0)
     [assign_labels.tracks assign_labels.labels] = build_tracks_from_ratings(label_ratings.d3_analysed,...
       label_ratings.rating);
     load_label_items(handles);
+    assign_labels.edited = 1;
   else
     assign_labels.tracks = label_ratings.tracks;
     assign_labels.labels = label_ratings.labels;
@@ -98,7 +104,7 @@ if ~isequal(fn,0)
       label_popup_txt{k}=[markers(k).name ': ' markers(k).color];
     end
     set(handles.label_popup,'string',[{''} label_popup_txt]);
-    sort_tracks('orig_rating',handles);
+    sort_tracks('orig_rating');
     change_track_num(1);
   end
   initialize(handles);
@@ -112,6 +118,20 @@ labels = cell(length(tracks),1);
 
 function load_label_items(handles)
 global assign_labels
+
+if isfield(assign_labels,'label_items')
+  choice = questdlg(['Label items found/n'...
+    'Loading a new set of label items will discard previous track labeling. Continue?'], ...
+    'Load label items?', ...
+    'Yes','No','No');
+  switch choice
+    case 'Yes'
+      assign_labels = rmfield(assign_labels,'label_items');
+      assign_labels.labels = cell(length(assign_labels.tracks),1);
+    case 'No'
+      return;
+  end
+end
 
 if ispref('vicon_labeler','label_items') && ...
     exist(getpref('vicon_labeler','label_items'),'dir')
@@ -167,13 +187,20 @@ set(handles.save_animation,'enable','on');
 set(handles.next_unlabeled,'enable','on');
 set(handles.pts_before,'enable','on');
 set(handles.pts_after,'enable','on');
+set(handles.load_label_items_menu,'enable','on');
+set(handles.thresh_length_checkbox,'enable','on');
+set(handles.thresh_length_edit,'enable','on');
+set(handles.thresh_rank_checkbox,'enable','on');
+set(handles.thresh_rank_edit,'enable','on');
 
 set(handles.pts_before,'string','0');
 set(handles.pts_after,'string','0');
 set(handles.orig_rating_sort,'value',1);
 
-figure(1); view(3);
-figure(2); view(3);
+set(handles.figure1,'name',['Assign Labels: ' assign_labels.ratings_filename]);
+
+figure(1); view(3); rotate3d on;
+figure(2); view(3); rotate3d on;
 
 function update(handles)
 global assign_labels
@@ -184,9 +211,14 @@ all_points(all_points(:,1)==0,:) = [];
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 [track_points track_frames] = get_track_points_frames(track);
 
-plotting_frames = determine_plotting_frames(handles,track_frames);
-unlab_near_track = cell2mat(unlabeled_bat(plotting_frames));
-unlab_near_track(unlab_near_track(:,1)==0,:) = [];
+if isempty(track_frames)
+  plotting_frames=[];
+  unlab_near_track=[];
+else
+  plotting_frames = determine_plotting_frames(handles,track_frames);
+  unlab_near_track = cell2mat(unlabeled_bat(plotting_frames));
+  unlab_near_track(unlab_near_track(:,1)==0,:) = [];
+end
 
 track_color= get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
@@ -239,50 +271,71 @@ view([az,el]);
 grid on;
 
 figure(2);
-[az,el] = view;
-clf;
 set(gcf,'position',[30+.3*scrn_size(3) .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)]);
-hold on;
-plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
-  '-o','color',track_color,'markersize',11,'linewidth',2);
-plot3(unlab_near_track(:,1),unlab_near_track(:,2),unlab_near_track(:,3),...
-  'ok','markersize',3,'markerfacecolor','k');
-for lab=1:length(lab_tracks_in_zoom)
-  lab_frames = [lab_tracks_in_zoom{lab}.frame];
-  [c ia]=intersect(lab_frames,plotting_frames);
-  lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
-    length([lab_tracks_in_zoom{lab}.point])/3)';
-  plot3(lab_points(ia,1),lab_points(ia,2),lab_points(ia,3),...
-    '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
+if isempty(plotting_frames)
+  cla;
+  a = axis;
+  text((a(1)+a(2))/2,(a(3)+a(4))/2,'No track points','fontsize',14);
+  grid off;
+else
+  [az,el] = view;
+  clf;
+  hold on;
+  plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
+    '-o','color',track_color,'markersize',11,'linewidth',2);
+  plot3(unlab_near_track(:,1),unlab_near_track(:,2),unlab_near_track(:,3),...
+    'ok','markersize',3,'markerfacecolor','k');
+  for lab=1:length(lab_tracks_in_zoom)
+    lab_frames = [lab_tracks_in_zoom{lab}.frame];
+    [c ia]=intersect(lab_frames,plotting_frames);
+    lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
+      length([lab_tracks_in_zoom{lab}.point])/3)';
+    plot3(lab_points(ia,1),lab_points(ia,2),lab_points(ia,3),...
+      '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
+  end
+  text(track_points(1,1),track_points(1,2),track_points(1,3)+.15,...
+    'START');
+  text(track_points(end,1),track_points(end,2),track_points(end,3)+.15,...
+    'END');
+  axis vis3d;
+  view([az,el]);
+  grid on;
 end
-text(track_points(1,1),track_points(1,2),track_points(1,3)+.15,...
-  'START');
-text(track_points(end,1),track_points(end,2),track_points(end,3)+.15,...
-  'END');
-axis vis3d;
-view([az,el]);
-grid on;
 
 function set_track_info(handles)
 global assign_labels
 set(handles.track_num_edit,'string',num2str(assign_labels.cur_track_num));
 
-set(handles.frame_text,'string',...
-  num2str(assign_labels.tracks{assign_labels.cur_track_num}.rating.frame));
-set(handles.length_text,'string',...
-  num2str(length(assign_labels.tracks{assign_labels.cur_track_num}.points)));
+if ~isempty(assign_labels.tracks{assign_labels.cur_track_num}.points)
+  set(handles.frame_text,'string',...
+    num2str(assign_labels.tracks{assign_labels.cur_track_num}.points(1).frame));
+  set(handles.length_text,'string',...
+    num2str(length(assign_labels.tracks{assign_labels.cur_track_num}.points)));
 
-[sm_speed dir] = get_track_vel(assign_labels.tracks{assign_labels.cur_track_num}.points);
-spd_var = var(sm_speed);
-dir_var = var(dir);
+  sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
+  [B,IX] = sort(sort_value);
 
-set(handles.rating_text,'string',...
-  num2str((spd_var) * (dir_var),...
-  '%0.6f'));
-set(handles.spd_text,'string',...
-  num2str(spd_var,'%0.3f'));
-set(handles.dir_text,'string',...
-  num2str(dir_var,'%0.3f'));
+  [sm_speed dir] = get_track_vel(assign_labels.tracks{assign_labels.cur_track_num}.points);
+  spd_var = var(sm_speed);
+  dir_var = var(dir);
+
+  rank=find(IX==assign_labels.cur_track_num);
+  set(handles.ranking_text,'string',...
+    [num2str(rank/length(assign_labels.tracks)* 100,'%2.1f') ' %']);
+  set(handles.ranking_text,'TooltipString',...
+    num2str(rank));
+  set(handles.spd_text,'string',...
+    num2str(spd_var,'%0.3f'));
+  set(handles.dir_text,'string',...
+    num2str(dir_var,'%0.3f'));
+else
+  set(handles.frame_text,'string','');
+  set(handles.length_text,'string','');
+  set(handles.ranking_text,'string','');
+  set(handles.ranking_text,'TooltipString','');
+  set(handles.spd_text,'string','');
+  set(handles.dir_text,'string','');
+end
 
 function refocus(handles)
 global assign_labels
@@ -296,6 +349,7 @@ set(dcm_obj,'DisplayStyle','datatip',...
   'SnapToDataVertex','off','Enable','on')
 disp('Select point to zoom on and label, then press enter');
 pause
+rotate3d on;
 c_info = getCursorInfo(dcm_obj);
 
 if ~isempty(c_info)
@@ -345,11 +399,49 @@ end
 assign_labels.cur_track_num=n;
 
 
-function find_next_unlabeled()
+function find_next_unlabeled(handles)
 global assign_labels
 cur_track_num = assign_labels.cur_track_num;
-first_empty_label=find(cellfun(@isempty,assign_labels.labels(cur_track_num+1:end)),1);
-change_track_num(cur_track_num+first_empty_label);
+
+tracks = assign_labels.tracks(cur_track_num+1:end);
+track_indx=1:length(tracks);
+
+if get(handles.thresh_length_checkbox,'value')
+  len_thresh=str2double(get(handles.thresh_length_edit,'string'));
+  track_lengths = cellfun(@(c) length(c.points),tracks);
+  track_indx = intersect(track_indx,...
+    find(track_lengths>=len_thresh));
+end
+
+if get(handles.thresh_rank_checkbox,'value')
+  sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
+  [B,IX] = sort(sort_value);
+  [B,IX]=sort(IX);
+  rank_percent = IX./length(assign_labels.tracks)*100;
+  
+  rank_thresh = str2double(get(handles.thresh_rank_edit,'string'));
+  rank_percent = rank_percent(cur_track_num+1:end);
+  track_indx = intersect(track_indx,...
+    find(rank_percent<=rank_thresh));
+end
+
+if ~isempty(track_indx)
+  labels = assign_labels.labels(cur_track_num+1:end);
+  labels = labels(track_indx);
+  first_empty_label=find(cellfun(@isempty,labels),1);
+  change_track_num(cur_track_num + track_indx(first_empty_label));
+end
+
+
+function remove_labeled_points_from_other_tracks(track)
+global assign_labels
+track_points = get_track_points_frames(track.points);
+
+track_indx = setdiff(1:length(assign_labels.tracks),assign_labels.cur_track_num);
+edited_tracks = cellfun(@(c) {remove_points_from_track(c,track_points)},...
+  assign_labels.tracks(track_indx));
+
+assign_labels.tracks(track_indx) = edited_tracks;
 
 
 function track_labeled(selected_label_item)
@@ -358,6 +450,8 @@ global assign_labels
 LI_indx = selected_label_item - 1;
 
 if LI_indx > 0
+  remove_labeled_points_from_other_tracks(assign_labels.tracks{assign_labels.cur_track_num});
+  
   assign_labels.labels{assign_labels.cur_track_num}.color = ...
     assign_labels.label_items.markers(LI_indx).color;
   assign_labels.labels{assign_labels.cur_track_num}.track = ...
@@ -367,8 +461,9 @@ if LI_indx > 0
 else
   assign_labels.labels{assign_labels.cur_track_num}=[];
 end
+assign_labels.edited = 1;
 
-function sort_tracks(sort_type,handles)
+function sort_tracks(sort_type)
 global assign_labels
 switch sort_type
   case 'orig_rating'
@@ -401,6 +496,7 @@ set(dcm_obj,'DisplayStyle','datatip',...
   'SnapToDataVertex','off','Enable','on')
 disp('Select point to crop to, then press enter');
 pause
+rotate3d 'on';
 c_info = getCursorInfo(dcm_obj);
 
 if ~isempty(c_info)
@@ -425,6 +521,8 @@ if ~isempty(c_info)
     assign_labels.labels{assign_labels.cur_track_num}.track.points = new_track;
   end
   
+  assign_labels.edited = 1;
+  
   update(handles);
   
 end
@@ -432,6 +530,7 @@ end
 
 function save_trial(fn,pn)
 global assign_labels
+assign_labels=rmfield(assign_labels,'edited');
 label_ratings = assign_labels;
 label_ratings.ratings_pathname = pn;
 label_ratings.ratings_filename = fn;
@@ -504,12 +603,12 @@ if saving
   aviobj = avifile([pn(1:end-1) '\' fname],'compression','None','Fps',vid_frate);
 end
 
-figure(3);clf;
+h3=figure(3);clf;
 all_points=cell2mat(unlab_near_track);
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
 a=axis;
 for k=1:length(plotting_frames)
-  clf; hold on;
+  clf(h3); hold on;
   
   frame=plotting_frames(k);
   track_indx=find(track_frames == frame);
@@ -552,53 +651,54 @@ if saving
   %encode the file
 end
 
-% set(gcf,'position',[30+.3*scrn_size(3) .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)]);
-% for lab=1:length(lab_tracks_in_zoom)
-%   lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
-%     length([lab_tracks_in_zoom{lab}.point])/3)';
-%   plot3(lab_points(:,1),lab_points(:,2),lab_points(:,3),...
-%     '-o','color',lab_clrs_in_zoom{lab},'markersize',8);
-% end
+function close_GUI(hObject)
+global assign_labels
 
-% --- Outputs from this function are returned to the command line.
+if save_before_discard()
+  return
+end
+
+assign_labels = [];
+% Hint: delete(hObject) closes the figure
+delete(hObject);
+close all;
+
+function canceled = save_before_discard()
+global assign_labels
+canceled = 0;
+if isfield(assign_labels,'edited') && assign_labels.edited
+  choice = questdlg('Edits detected, save first?', ...
+    'Save?', ...
+    'Yes','No','Cancel','Yes');
+  % Handle response
+  switch choice
+    case 'Yes'
+      save_trial(assign_labels.ratings_filename,assign_labels.ratings_pathname);
+    case 'Cancel'
+      canceled = 1;
+  end
+end
+
+
+%%%%%%%%%%%%%%%%%%%%%% CALLBACKS %%%%%%%%%%%%%%%%%%%%%%
+
+
 function varargout = assign_labels_OutputFcn(hObject, eventdata, handles) 
-% varargout  cell array for returning output args (see VARARGOUT);
-% hObject    handle to figure
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Get default command line output from handles structure
 varargout{1} = handles.output;
 
 
-% --------------------------------------------------------------------
 function file_menu_Callback(hObject, eventdata, handles)
-% hObject    handle to file_menu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
 
-% --------------------------------------------------------------------
 function open_menu_Callback(hObject, eventdata, handles)
-% hObject    handle to open_menu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 open_ratings_file(handles);
 
 
-% --------------------------------------------------------------------
 function save_menu_Callback(hObject, eventdata, handles)
-% hObject    handle to save_menu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 global assign_labels
 save_trial(assign_labels.ratings_filename,assign_labels.ratings_pathname);
 
-% --------------------------------------------------------------------
 function save_as_menu_Callback(hObject, eventdata, handles)
-% hObject    handle to save_as_menu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 global assign_labels
 if ispref('vicon_labeler','ratings') && ...
     exist(getpref('vicon_labeler','ratings'),'dir')
@@ -618,116 +718,54 @@ else
 end
 
 function track_num_edit_Callback(hObject, eventdata, handles)
-% hObject    handle to track_num_edit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 change_track_num(str2double(get(hObject,'String')));
 update(handles);
 
-% Hints: get(hObject,'String') returns contents of track_num_edit as text
-%        str2double(get(hObject,'String')) returns contents of track_num_edit as a double
-
-
-% --- Executes during object creation, after setting all properties.
 function track_num_edit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to track_num_edit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
 
-% --- Executes on button press in refocus_button.
 function refocus_button_Callback(hObject, eventdata, handles)
-% hObject    handle to refocus_button (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 refocus(handles);
 
 
-% --- Executes on button press in track_num_up_button.
 function track_num_up_button_Callback(hObject, eventdata, handles)
-% hObject    handle to track_num_up_button (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 change_track_num(str2double(get(handles.track_num_edit,'String'))+1);
 update(handles);
 
-% --- Executes on button press in track_num_down_button.
 function track_num_down_button_Callback(hObject, eventdata, handles)
-% hObject    handle to track_num_down_button (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 change_track_num(str2double(get(handles.track_num_edit,'String'))-1);
 update(handles);
 
-% --- Executes when user attempts to close GUI.
 function figure1_CloseRequestFcn(hObject, eventdata, handles)
-% hObject    handle to figure1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-global assign_labels
-assign_labels = [];
+%from the close [x] button
+close_GUI(hObject);
 
-% Hint: delete(hObject) closes the figure
-delete(hObject);
+function close_GUI_Callback(hObject, eventdata, handles)
+%from the menu dropdown
+close_GUI(handles.figure1);
 
-close all;
-
-
-% --- Executes on selection change in label_popup.
 function label_popup_Callback(hObject, eventdata, handles)
-% hObject    handle to label_popup (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns label_popup contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from label_popup
 track_labeled(get(hObject,'Value'));
 if get(handles.advance_checkbox,'value')
-  change_track_num(str2double(get(handles.track_num_edit,'String'))+1);
+  find_next_unlabeled(handles);
 end
 update(handles);
 
-% --- Executes during object creation, after setting all properties.
 function label_popup_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to label_popup (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
 
-% --------------------------------------------------------------------
 function label_menu_Callback(hObject, eventdata, handles)
-% hObject    handle to label_menu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-% --------------------------------------------------------------------
 function manage_label_items_Callback(hObject, eventdata, handles)
-% hObject    handle to manage_label_items (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 manage_label_items();
 
-
-% --- Executes when selected object is changed in sort_panel.
 function sort_panel_SelectionChangeFcn(hObject, eventdata, handles)
-% hObject    handle to the selected object in sort_panel 
-% eventdata  structure with the following fields (see UIBUTTONGROUP)
-%	EventName: string 'SelectionChanged' (read only)
-%	OldValue: handle of the previously selected object or empty if none was selected
-%	NewValue: handle of the currently selected object
-% handles    structure with handles and user data (see GUIDATA)
 if get(handles.orig_rating_sort,'value')
   sort_type = 'orig_rating';
 elseif get(handles.frame_sort,'value')
@@ -737,24 +775,13 @@ elseif get(handles.cur_rating_sort,'value')
 elseif get(handles.length_sort,'value')
   sort_type = 'length';
 end
-sort_tracks(sort_type,handles);
+sort_tracks(sort_type);
 update(handles);
 
 
-% --- Executes on button press in advance_checkbox.
 function advance_checkbox_Callback(hObject, eventdata, handles)
-% hObject    handle to advance_checkbox (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of advance_checkbox
-
-
-% --- Executes on button press in rebuild_current_track.
 function rebuild_current_track_Callback(hObject, eventdata, handles)
-% hObject    handle to rebuild_current_track (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 global assign_labels
 if ~isempty(assign_labels.labels{assign_labels.cur_track_num})
   choice = questdlg('Continuing will wipe the current label', ...
@@ -772,13 +799,10 @@ unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
 assign_labels.tracks{assign_labels.cur_track_num}.points = track;
 assign_labels.tracks{assign_labels.cur_track_num}.endings = endings;
 assign_labels.labels{assign_labels.cur_track_num}=[];
+assign_labels.edited = 1;
 update(handles);
 
-% --- Executes on button press in rebuild_all_tracks.
 function rebuild_all_tracks_Callback(hObject, eventdata, handles)
-% hObject    handle to rebuild_all_tracks (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 global assign_labels
 choice = questdlg('Continuing will wipe all tracks and labels', ...
 	'Rebuild all tracks', ...
@@ -789,107 +813,89 @@ switch choice
 end
 [assign_labels.tracks assign_labels.labels] = build_tracks_from_ratings(assign_labels.d3_analysed,...
 assign_labels.rating);
+assign_labels.edited = 1;
 update(handles);
 
-% --- Executes on button press in edit_start_point.
 function edit_start_point_Callback(hObject, eventdata, handles)
-% hObject    handle to edit_start_point (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 crop_track(handles,'start');
 
-
-% --- Executes on button press in edit_end_point.
 function edit_end_point_Callback(hObject, eventdata, handles)
-% hObject    handle to edit_end_point (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 crop_track(handles,'end');
 
 
-% --- Executes on button press in animate_button.
 function animate_button_Callback(hObject, eventdata, handles)
-% hObject    handle to animate_button (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 animate_zoom(get(handles.save_animation,'value'),handles);
 
-
-% --- Executes on button press in save_animation.
 function save_animation_Callback(hObject, eventdata, handles)
-% hObject    handle to save_animation (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of save_animation
-
-
-% --- Executes on button press in next_unlabeled.
 function next_unlabeled_Callback(hObject, eventdata, handles)
-% hObject    handle to next_unlabeled (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-find_next_unlabeled();
+find_next_unlabeled(handles);
 update(handles);
-
 
 
 function pts_before_Callback(hObject, eventdata, handles)
-% hObject    handle to pts_before (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of pts_before as text
-%        str2double(get(hObject,'String')) returns contents of pts_before as a double
 if str2double(get(hObject,'String')) < 0
   set(hObject,'String','0');
 end
 update(handles);
 
-% --- Executes during object creation, after setting all properties.
 function pts_before_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to pts_before (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 
 
 function pts_after_Callback(hObject, eventdata, handles)
-% hObject    handle to pts_after (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of pts_after as text
-%        str2double(get(hObject,'String')) returns contents of pts_after as a double
 if str2double(get(hObject,'String')) < 0
   set(hObject,'String','0');
 end
 update(handles);
 
-% --- Executes during object creation, after setting all properties.
 function pts_after_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to pts_after (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
 
-% --------------------------------------------------------------------
-function close_GUI_Callback(hObject, eventdata, handles)
-% hObject    handle to close_GUI (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+function load_label_items_menu_Callback(hObject, eventdata, handles)
+load_label_items(handles);
+update(handles);
+
+
+function thresh_length_checkbox_Callback(hObject, eventdata, handles)
+% Hint: get(hObject,'Value') returns toggle state of thresh_length_checkbox
+
+
+function thresh_rank_checkbox_Callback(hObject, eventdata, handles)
+% Hint: get(hObject,'Value') returns toggle state of thresh_rank_checkbox
+
+
+
+function thresh_length_edit_Callback(hObject, eventdata, handles)
 global assign_labels
-assign_labels = [];
-close all;
+max_length = max(cellfun(@(c) length(c.points),assign_labels.tracks));
+value=str2double(get(hObject,'String'));
+if value<0
+  set(hObject,'string','0');
+elseif value > max_length
+  set(hObject,'string',num2str(max_length));
+end
+
+function thresh_length_edit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+function thresh_rank_edit_Callback(hObject, eventdata, handles)
+value = str2double(get(hObject,'String'));
+if value < 0
+  set(hObject,'string','0');
+elseif value > 100
+  set(hObject,'string','100');
+end
+
+function thresh_rank_edit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
