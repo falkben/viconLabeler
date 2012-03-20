@@ -161,7 +161,7 @@ if ~isequal(fn,0)
   setpref('vicon_labeler','label_items',pn);
   LI=load([pn fn]);
   assign_labels.label_items = LI.label_items;
-  set_label_popup(markers,handles)
+  set_label_popup(assign_labels.label_items.markers,handles)
 else
   manage_label_items();
   load_label_items(handles);
