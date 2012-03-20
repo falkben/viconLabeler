@@ -89,23 +89,36 @@ if ~isequal(fn,0)
   assign_labels.ratings_filename=fn;
   assign_labels.rating = label_ratings.rating;
   assign_labels.d3_analysed = label_ratings.d3_analysed;
-  assign_labels.cur_track_num = 1;
   if ~isfield(label_ratings,'tracks')
     [assign_labels.tracks assign_labels.labels] = build_tracks_from_ratings(label_ratings.d3_analysed,...
       label_ratings.rating);
     load_label_items(handles);
     assign_labels.edited = 1;
+    change_track_num(1);
+    set(handles.orig_rating_sort,'value',1);
   else
     assign_labels.tracks = label_ratings.tracks;
     assign_labels.labels = label_ratings.labels;
     assign_labels.label_items = label_ratings.label_items;
+    assign_labels.cur_track_num = label_ratings.cur_track_num;
     markers = label_ratings.label_items.markers;
-    for k=1:length(markers)
-      label_popup_txt{k}=[markers(k).name ': ' markers(k).color];
+    set_label_popup(markers,handles);
+    if isfield(label_ratings,'sorted_by')
+      assign_labels.sorted_by = label_ratings.sorted_by;
+    else
+      assign_labels.sorted_by = 'orig_rating';
     end
-    set(handles.label_popup,'string',[{''} label_popup_txt]);
-    sort_tracks('orig_rating');
-    change_track_num(1);
+    switch assign_labels.sorted_by
+      case 'orig_rating'
+        set(handles.orig_rating_sort,'value',1)
+      case 'frame'
+        set(handles.frame_sort,'value',1)
+      case 'cur_rating'
+        set(handles.cur_rating_sort,'value',1)
+      case 'length'
+        set(handles.length_sort,'value',1)
+    end
+    change_track_num(assign_labels.cur_track_num);
   end
   initialize(handles);
   update(handles);
@@ -148,22 +161,32 @@ if ~isequal(fn,0)
   setpref('vicon_labeler','label_items',pn);
   LI=load([pn fn]);
   assign_labels.label_items = LI.label_items;
-  markers = LI.label_items.markers;
-  for k=1:length(markers)
-    label_popup_txt{k}=[markers(k).name ': ' markers(k).color];
-  end
-  set(handles.label_popup,'string',[{''} label_popup_txt]);
+  set_label_popup(markers,handles)
 else
   manage_label_items();
   load_label_items(handles);
 end
+
+function set_label_popup(markers,handles)
+for k=1:length(markers)
+  cname = conv_cspec_to_cname(markers(k).color);
+  label_popup_txt{k} = ['<HTML><FONT COLOR="' cname '">'...
+    markers(k).name ': ' markers(k).color ...
+    '</FONT></HTML>'];
+%   label_popup_txt{k}=[markers(k).name ': ' markers(k).color];
+end
+set(handles.label_popup,'string',[{''} label_popup_txt]);
+
 
 function manage_label_items()
 waitfor(label_items);
 
 function initialize(handles)
 global assign_labels
-set(handles.track_num_edit,'string','1');
+
+%turning this warnign off once for minimizing gui when we animate
+warning('off','MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame');
+
 set(handles.max_tracks,'string',num2str(length(assign_labels.tracks)));
 
 set(handles.track_num_down_button,'enable','on');
@@ -195,7 +218,6 @@ set(handles.thresh_rank_edit,'enable','on');
 
 set(handles.pts_before,'string','0');
 set(handles.pts_after,'string','0');
-set(handles.orig_rating_sort,'value',1);
 
 set(handles.figure1,'name',['Assign Labels: ' assign_labels.ratings_filename]);
 
@@ -215,7 +237,9 @@ if isempty(track_frames)
   plotting_frames=[];
   unlab_near_track=[];
 else
-  plotting_frames = determine_plotting_frames(handles,track_frames);
+  plotting_frames = determine_plotting_frames(handles,track_frames,length(unlabeled_bat));
+  plotting_frames(plotting_frames > length(unlabeled_bat)) = [];
+  plotting_frames(plotting_frames < 1) = [];
   unlab_near_track = cell2mat(unlabeled_bat(plotting_frames));
   unlab_near_track(unlab_near_track(:,1)==0,:) = [];
 end
@@ -429,7 +453,9 @@ if ~isempty(track_indx)
   labels = assign_labels.labels(cur_track_num+1:end);
   labels = labels(track_indx);
   first_empty_label=find(cellfun(@isempty,labels),1);
-  change_track_num(cur_track_num + track_indx(first_empty_label));
+  if ~isempty(first_empty_label)
+    change_track_num(cur_track_num + track_indx(first_empty_label));
+  end
 end
 
 
@@ -481,6 +507,7 @@ end
 [B,IX] = sort(sort_value);
 assign_labels.tracks = assign_labels.tracks(IX);
 assign_labels.labels = assign_labels.labels(IX);
+assign_labels.sorted_by = sort_type;
 change_track_num(find(IX==assign_labels.cur_track_num,1))
 
 
@@ -530,16 +557,21 @@ end
 
 function save_trial(fn,pn)
 global assign_labels
-assign_labels=rmfield(assign_labels,'edited');
+if isfield(assign_labels,'edited')
+  assign_labels=rmfield(assign_labels,'edited');
+end
 label_ratings = assign_labels;
 label_ratings.ratings_pathname = pn;
 label_ratings.ratings_filename = fn;
 save([pn fn],'label_ratings');
 disp(['Saved at: ' datestr(now,14)]);
 
-function plotting_frames = determine_plotting_frames(handles,track_frames)
+function plotting_frames = determine_plotting_frames(handles,track_frames,trial_length)
 plotting_frames = track_frames(1)-str2double(get(handles.pts_before,'string')):...
   track_frames(end)+str2double(get(handles.pts_after,'string'));
+plotting_frames(plotting_frames < 1) = [];
+plotting_frames(plotting_frames > trial_length) = [];
+
 
 function track_color = get_track_color(label)
 if isempty(label)
@@ -577,12 +609,17 @@ end
 function animate_zoom(saving,handles)
 global assign_labels
 
+%minimizing the GUI window during animation to prevent accidental clicking
+%of GUI which then starts to animate the GUI...\
+jFrame = get(handles.figure1,'JavaFrame');
+jFrame.setMinimized(true);
+
+
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 [track_points track_frames] = get_track_points_frames(track);
 
 unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
-
-plotting_frames = determine_plotting_frames(handles,track_frames);
+plotting_frames = determine_plotting_frames(handles,track_frames,length(unlabeled_bat));
 
 track_color = get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
@@ -648,8 +685,10 @@ end
 if saving
   aviobj = close(aviobj);
   system(['explorer.exe /select,' pn(1:end-1) '\' fname])
-  %encode the file
+  %encode the file?
 end
+
+jFrame.setMinimized(false);
 
 function close_GUI(hObject)
 global assign_labels
@@ -863,11 +902,9 @@ update(handles);
 
 
 function thresh_length_checkbox_Callback(hObject, eventdata, handles)
-% Hint: get(hObject,'Value') returns toggle state of thresh_length_checkbox
 
 
 function thresh_rank_checkbox_Callback(hObject, eventdata, handles)
-% Hint: get(hObject,'Value') returns toggle state of thresh_rank_checkbox
 
 
 
