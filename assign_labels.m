@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 19-Mar-2012 17:03:57
+% Last Modified by GUIDE v2.5 21-Mar-2012 11:15:39
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -187,8 +187,6 @@ global assign_labels
 %turning this warnign off once for minimizing gui when we animate
 warning('off','MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame');
 
-set(handles.max_tracks,'string',num2str(length(assign_labels.tracks)));
-
 set(handles.track_num_down_button,'enable','on');
 set(handles.track_num_up_button,'enable','on');
 set(handles.track_num_edit,'enable','on');
@@ -215,6 +213,10 @@ set(handles.thresh_length_checkbox,'enable','on');
 set(handles.thresh_length_edit,'enable','on');
 set(handles.thresh_rank_checkbox,'enable','on');
 set(handles.thresh_rank_edit,'enable','on');
+set(handles.new_track_button,'enable','on');
+set(handles.use_all_radio,'enable','on');
+set(handles.use_unlabeled_radio,'enable','on');
+set(handles.del_button,'enable','on');
 
 set(handles.pts_before,'string','0');
 set(handles.pts_after,'string','0');
@@ -238,8 +240,6 @@ if isempty(track_frames)
   unlab_near_track=[];
 else
   plotting_frames = determine_plotting_frames(handles,track_frames,length(unlabeled_bat));
-  plotting_frames(plotting_frames > length(unlabeled_bat)) = [];
-  plotting_frames(plotting_frames < 1) = [];
   unlab_near_track = cell2mat(unlabeled_bat(plotting_frames));
   unlab_near_track(unlab_near_track(:,1)==0,:) = [];
 end
@@ -328,6 +328,8 @@ end
 
 function set_track_info(handles)
 global assign_labels
+set(handles.max_tracks,'string',num2str(length(assign_labels.tracks)));
+
 set(handles.track_num_edit,'string',num2str(assign_labels.cur_track_num));
 
 if ~isempty(assign_labels.tracks{assign_labels.cur_track_num}.points)
@@ -489,21 +491,26 @@ else
 end
 assign_labels.edited = 1;
 
-function sort_tracks(sort_type)
+function sort_tracks(handles)
 global assign_labels
-switch sort_type
-  case 'orig_rating'
-    sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
-  case 'frame'
-    sort_value = cellfun(@(c) c.rating.frame,assign_labels.tracks);
-  case 'cur_rating'
-    [spd dir]=cellfun(@(c) get_track_vel(c.points), assign_labels.tracks,...
-      'uniformoutput',0);
-    sort_value = cellfun(@var,spd) .* cellfun(@var,dir);
-  case 'length'
-    sort_value = 1./cell2mat(cellfun(@(c) length(c.points), assign_labels.tracks,...
-      'uniformoutput',0));
+
+if get(handles.orig_rating_sort,'value')
+  sort_type = 'orig_rating';
+  sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
+elseif get(handles.frame_sort,'value')
+  sort_type = 'frame';
+  sort_value = cellfun(@(c) c.rating.frame,assign_labels.tracks);
+elseif get(handles.cur_rating_sort,'value')
+  sort_type = 'cur_rating';
+  [spd dir]=cellfun(@(c) get_track_vel(c.points), assign_labels.tracks,...
+    'uniformoutput',0);
+  sort_value = cellfun(@var,spd) .* cellfun(@var,dir);
+elseif get(handles.length_sort,'value')
+  sort_type = 'length';
+  sort_value = 1./cell2mat(cellfun(@(c) length(c.points), assign_labels.tracks,...
+    'uniformoutput',0));
 end
+
 [B,IX] = sort(sort_value);
 assign_labels.tracks = assign_labels.tracks(IX);
 assign_labels.labels = assign_labels.labels(IX);
@@ -719,7 +726,69 @@ if isfield(assign_labels,'edited') && assign_labels.edited
 end
 
 
-%%%%%%%%%%%%%%%%%%%%%% CALLBACKS %%%%%%%%%%%%%%%%%%%%%%
+function create_new_track(handles)
+global assign_labels
+if get(handles.full_trial_radio,'value')
+  figure(1);
+else
+  figure(2);
+end
+dcm_obj = datacursormode(gcf);
+set(dcm_obj,'DisplayStyle','datatip',...
+  'SnapToDataVertex','off','Enable','on')
+disp('Select point to start new track from, then press enter');
+pause
+rotate3d 'on';
+c_info = getCursorInfo(dcm_obj);
+
+if ~isempty(c_info)
+  
+  [frame point] = get_frame_from_point(c_info.Position,assign_labels.d3_analysed);
+  unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
+  if get(handles.use_all_radio,'value')
+    other_points = unlabeled_bat;
+  else
+    other_points = remove_labeled_points(unlabeled_bat);
+  end
+  
+  [track endings] = create_track(frame,point,other_points);
+  rating = rate_point(frame,point,assign_labels.d3_analysed);
+  assign_labels.cur_track_num = length(assign_labels.tracks)+1;
+  assign_labels.tracks{assign_labels.cur_track_num}.points = track;
+  assign_labels.tracks{assign_labels.cur_track_num}.endings = endings;
+  assign_labels.tracks{assign_labels.cur_track_num}.rating = rating;
+  assign_labels.labels{assign_labels.cur_track_num}=[];
+  assign_labels.edited = 1;
+  
+  sort_tracks(handles);
+  update(handles);
+  
+end
+
+function other_points = remove_labeled_points(unlabeled_bat)
+global assign_labels
+
+labels = assign_labels.labels(~cellfun(@isempty,assign_labels.labels));
+
+for k=1:length(labels)
+  [track_points track_frames] = get_track_points_frames(labels{k}.track.points);
+  for f=1:length(track_frames)
+    unlabeled_bat{track_frames(f)}=setdiff(unlabeled_bat{track_frames(f)},track_points(f,:),...
+      'rows');
+  end
+end
+other_points=unlabeled_bat;
+
+
+function delete_current_track()
+global assign_labels
+assign_labels.tracks(assign_labels.cur_track_num)=[];
+assign_labels.labels(assign_labels.cur_track_num)=[];
+assign_labels.edited = 1;
+change_track_num(assign_labels.cur_track_num-1);
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACKS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 function varargout = assign_labels_OutputFcn(hObject, eventdata, handles) 
@@ -805,16 +874,7 @@ function manage_label_items_Callback(hObject, eventdata, handles)
 manage_label_items();
 
 function sort_panel_SelectionChangeFcn(hObject, eventdata, handles)
-if get(handles.orig_rating_sort,'value')
-  sort_type = 'orig_rating';
-elseif get(handles.frame_sort,'value')
-  sort_type = 'frame';
-elseif get(handles.cur_rating_sort,'value')
-  sort_type = 'cur_rating';
-elseif get(handles.length_sort,'value')
-  sort_type = 'length';
-end
-sort_tracks(sort_type);
+sort_tracks(handles);
 update(handles);
 
 
@@ -936,3 +996,20 @@ function thresh_rank_edit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+function new_track_button_Callback(hObject, eventdata, handles)
+create_new_track(handles);
+update(handles);
+
+
+function del_button_Callback(hObject, eventdata, handles)
+choice = questdlg('Are you sure you want to delete the current track?', ...
+  'Delete?', ...
+  'OK','Cancel','Cancel');
+switch choice
+  case 'Cancel'
+    return;
+end
+delete_current_track();
+update(handles);
