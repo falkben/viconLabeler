@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 26-Mar-2012 13:12:13
+% Last Modified by GUIDE v2.5 26-Mar-2012 16:03:19
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -302,6 +302,7 @@ set(handles.use_all_radio,'enable','on');
 set(handles.use_unlabeled_radio,'enable','on');
 set(handles.del_button,'enable','on');
 set(handles.labels_listbox,'enable','on');
+set(handles.prev_unlabeled,'enable','on');
 
 set(handles.pts_before,'string','0');
 set(handles.pts_after,'string','0');
@@ -331,11 +332,19 @@ end
 
 track_color= get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
+[labels labeled_colors]=get_all_labels_colors(assign_labels.labels);
+marker_names={assign_labels.label_items.markers.name};
 if ~isempty(assign_labels.labels{assign_labels.cur_track_num})
   label_indx = find(~cellfun(@isempty,strfind({assign_labels.label_items.markers.name},...
     assign_labels.labels{assign_labels.cur_track_num}.label)),1) + 1;
+  set(handles.label_popup,'string',[{''} marker_names]);
 else
   label_indx = 1;
+  [lab_tracks_in_zoom lab_clrs_in_zoom lab_name_in_zoom]=get_labels_for_plotting(...
+    labels,track_frames);
+  marker_names={assign_labels.label_items.markers.name};
+  [remaining_markers,ia] = setdiff(marker_names,lab_name_in_zoom);
+  set(handles.label_popup,'string',[{''} marker_names(sort(ia))]);
 end
 set(handles.label_popup,'value',label_indx);
 
@@ -343,8 +352,7 @@ set_track_info(handles);
 
 set_label_listbox(handles);
 
-[labels labeled_colors lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
-  assign_labels.labels,plotting_frames);
+[lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(labels,plotting_frames);
 
 scrn_size=get(0,'ScreenSize');
 
@@ -412,6 +420,7 @@ else
   view([az,el]);
   grid on;
 end
+
 
 function set_track_info(handles)
 global assign_labels
@@ -530,11 +539,18 @@ end
 assign_labels.cur_track_num=n;
 
 
-function find_next_unlabeled(handles)
+function find_next_unlabeled(handles,direction)
 global assign_labels
 cur_track_num = assign_labels.cur_track_num;
 
-tracks = assign_labels.tracks(cur_track_num+1:end);
+if direction==1
+  track_subset=cur_track_num+1:length(assign_labels.tracks);
+  find_dir='first';
+else
+  track_subset=1:cur_track_num-1;
+  find_dir='last';
+end
+tracks = assign_labels.tracks(track_subset);
 track_indx=1:length(tracks);
 
 if get(handles.thresh_length_checkbox,'value')
@@ -551,17 +567,21 @@ if get(handles.thresh_rank_checkbox,'value')
   rank_percent = IX./length(assign_labels.tracks)*100;
   
   rank_thresh = str2double(get(handles.thresh_rank_edit,'string'));
-  rank_percent = rank_percent(cur_track_num+1:end);
+  rank_percent = rank_percent(track_subset);
   track_indx = intersect(track_indx,...
     find(rank_percent<=rank_thresh));
 end
 
 if ~isempty(track_indx)
-  labels = assign_labels.labels(cur_track_num+1:end);
+  labels = assign_labels.labels(track_subset);
   labels = labels(track_indx);
-  first_empty_label=find(cellfun(@isempty,labels),1);
+  first_empty_label=find(cellfun(@isempty,labels),1,find_dir);
   if ~isempty(first_empty_label)
-    change_track_num(cur_track_num + track_indx(first_empty_label));
+    if direction==1
+      change_track_num(cur_track_num + track_indx(first_empty_label));
+    else
+      change_track_num(track_indx(first_empty_label));
+    end
   end
 end
 
@@ -577,20 +597,24 @@ edited_tracks = cellfun(@(c) {remove_points_from_track(c,track_points)},...
 assign_labels.tracks(track_indx) = edited_tracks;
 
 
-function track_labeled(selected_label_item)
+function track_labeled(selected_label_item,marker_names)
 global assign_labels
 
 LI_indx = selected_label_item - 1;
 
 if LI_indx > 0
+  all_ms=assign_labels.label_items.markers;
+  [m ia] = intersect({all_ms.name},marker_names);
+  markers=all_ms(sort(ia));
+  
   remove_labeled_points_from_other_tracks(assign_labels.tracks{assign_labels.cur_track_num});
   
   assign_labels.labels{assign_labels.cur_track_num}.color = ...
-    assign_labels.label_items.markers(LI_indx).color;
+    markers(LI_indx).color;
+  assign_labels.labels{assign_labels.cur_track_num}.label = ...
+    markers(LI_indx).name;
   assign_labels.labels{assign_labels.cur_track_num}.track = ...
     assign_labels.tracks{assign_labels.cur_track_num};
-  assign_labels.labels{assign_labels.cur_track_num}.label = ...
-    assign_labels.label_items.markers(LI_indx).name;
 else
   assign_labels.labels{assign_labels.cur_track_num}=[];
 end
@@ -696,8 +720,7 @@ function [track_points track_frames] = get_track_points_frames(track)
 track_points = reshape([track.point],3,length([track.point])/3)';
 track_frames = [track.frame];
 
-function [labels labeled_colors lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(all_labels,plotting_frames)
-
+function [labels labeled_colors]=get_all_labels_colors(all_labels)
 labels = [all_labels{~cellfun(@isempty,all_labels)}];
 if ~isempty(labels)
   labeled_colors = [labels.color];
@@ -705,8 +728,10 @@ else
   labeled_colors = [];
 end
 
+function [lab_tracks_in_zoom lab_clrs_in_zoom lab_name_in_zoom]=get_labels_for_plotting(labels,plotting_frames)
 lab_tracks_in_zoom = {};
 lab_clrs_in_zoom = {};
+lab_name_in_zoom = {};
 for lab=1:length(labels)
   lab_track = labels(lab).track.points;
   lab_frames = [lab_track.frame];
@@ -714,6 +739,7 @@ for lab=1:length(labels)
   if ~isempty(isect_lab_track)
     lab_tracks_in_zoom{end+1} = lab_track;
     lab_clrs_in_zoom{end+1} = labels(lab).color;
+    lab_name_in_zoom{end+1} = labels(lab).label;
   end
 end
 
@@ -735,8 +761,8 @@ plotting_frames = determine_plotting_frames(handles,track_frames,length(unlabele
 
 track_color = get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
-[labels labeled_colors lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
-  assign_labels.labels,plotting_frames);
+[lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
+  [assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}],plotting_frames);
 
 unlab_near_track = unlabeled_bat(plotting_frames);
 unlab_near_track=cellfun(@(c) c(c(:,1)~=0,:),unlab_near_track,'uniformoutput',0);
@@ -974,9 +1000,9 @@ function close_GUI_Callback(hObject, eventdata, handles)
 close_GUI(handles.figure1);
 
 function label_popup_Callback(hObject, eventdata, handles)
-track_labeled(get(hObject,'Value'));
+track_labeled(get(hObject,'Value'),get(hObject,'String'));
 if get(handles.advance_checkbox,'value')
-  find_next_unlabeled(handles);
+  find_next_unlabeled(handles,1);
 end
 update(handles);
 
@@ -1046,9 +1072,12 @@ animate_zoom(get(handles.save_animation,'value'),handles);
 function save_animation_Callback(hObject, eventdata, handles)
 
 function next_unlabeled_Callback(hObject, eventdata, handles)
-find_next_unlabeled(handles);
+find_next_unlabeled(handles,1);
 update(handles);
 
+function prev_unlabeled_Callback(hObject, eventdata, handles)
+find_next_unlabeled(handles,-1);
+update(handles);
 
 function pts_before_Callback(hObject, eventdata, handles)
 if str2double(get(hObject,'String')) < 0
