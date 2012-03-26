@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 26-Mar-2012 16:03:19
+% Last Modified by GUIDE v2.5 26-Mar-2012 16:44:09
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -303,6 +303,7 @@ set(handles.use_unlabeled_radio,'enable','on');
 set(handles.del_button,'enable','on');
 set(handles.labels_listbox,'enable','on');
 set(handles.prev_unlabeled,'enable','on');
+set(handles.all_labels_as_options,'enable','on');
 
 set(handles.pts_before,'string','0');
 set(handles.pts_after,'string','0');
@@ -333,19 +334,21 @@ end
 track_color= get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
 [labels labeled_colors]=get_all_labels_colors(assign_labels.labels);
-marker_names={assign_labels.label_items.markers.name};
+markers=assign_labels.label_items.markers;
 if ~isempty(assign_labels.labels{assign_labels.cur_track_num})
   label_indx = find(~cellfun(@isempty,strfind({assign_labels.label_items.markers.name},...
     assign_labels.labels{assign_labels.cur_track_num}.label)),1) + 1;
-  set(handles.label_popup,'string',[{''} marker_names]);
 else
   label_indx = 1;
-  [lab_tracks_in_zoom lab_clrs_in_zoom lab_name_in_zoom]=get_labels_for_plotting(...
-    labels,track_frames);
-  marker_names={assign_labels.label_items.markers.name};
-  [remaining_markers,ia] = setdiff(marker_names,lab_name_in_zoom);
-  set(handles.label_popup,'string',[{''} marker_names(sort(ia))]);
+  if ~get(handles.all_labels_as_options,'value')
+    [lab_tracks_in_zoom lab_clrs_in_zoom lab_name_in_zoom]=get_labels_for_plotting(...
+      labels,track_frames);
+    marker_names={assign_labels.label_items.markers.name};
+    [remaining_markers,ia] = setdiff(marker_names,lab_name_in_zoom);
+    markers = assign_labels.label_items.markers(sort(ia));
+  end
 end
+set_label_popup(markers,handles);
 set(handles.label_popup,'value',label_indx);
 
 set_track_info(handles);
@@ -564,7 +567,7 @@ if get(handles.thresh_rank_checkbox,'value')
   sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
   [B,IX] = sort(sort_value);
   [B,IX]=sort(IX);
-  rank_percent = IX./length(assign_labels.tracks)*100;
+  rank_percent = IX./length(assign_labels.tracks).*100;
   
   rank_thresh = str2double(get(handles.thresh_rank_edit,'string'));
   rank_percent = rank_percent(track_subset);
@@ -604,7 +607,13 @@ LI_indx = selected_label_item - 1;
 
 if LI_indx > 0
   all_ms=assign_labels.label_items.markers;
-  [m ia] = intersect({all_ms.name},marker_names);
+  
+  for k=1:length(all_ms)
+    names_to_match{k}=['<HTML><FONT COLOR="' conv_cspec_to_cname(all_ms(k).color) '">'...
+    all_ms(k).name ': ' all_ms(k).color '</FONT></HTML>'];
+  end
+  
+  [m ia] = intersect(names_to_match,marker_names);
   markers=all_ms(sort(ia));
   
   remove_labeled_points_from_other_tracks(assign_labels.tracks{assign_labels.cur_track_num});
@@ -1175,3 +1184,7 @@ function labels_listbox_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+function all_labels_as_options_Callback(hObject, eventdata, handles)
+update(handles);
