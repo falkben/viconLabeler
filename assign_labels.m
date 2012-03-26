@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 22-Mar-2012 11:25:36
+% Last Modified by GUIDE v2.5 26-Mar-2012 13:12:13
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -301,6 +301,7 @@ set(handles.new_track_button,'enable','on');
 set(handles.use_all_radio,'enable','on');
 set(handles.use_unlabeled_radio,'enable','on');
 set(handles.del_button,'enable','on');
+set(handles.labels_listbox,'enable','on');
 
 set(handles.pts_before,'string','0');
 set(handles.pts_after,'string','0');
@@ -339,6 +340,8 @@ end
 set(handles.label_popup,'value',label_indx);
 
 set_track_info(handles);
+
+set_label_listbox(handles);
 
 [labels labeled_colors lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
   assign_labels.labels,plotting_frames);
@@ -445,6 +448,24 @@ else
   set(handles.ranking_text,'TooltipString','');
   set(handles.spd_text,'string','');
   set(handles.dir_text,'string','');
+end
+
+function set_label_listbox(handles)
+global assign_labels
+
+labels_isempty=cellfun(@isempty,assign_labels.labels);
+labels=assign_labels.labels(~labels_isempty);
+labelstrings=cellfun(@(c) ['<html><font color="' conv_cspec_to_cname(c.color) '">' ...
+  num2str(c.track.points(1).frame) ': ' num2str(c.label) ', len: ' num2str(length(c.track.points))...
+  '</font></html>'],...
+  labels,'uniformoutput',0);
+set(handles.labels_listbox,'String',labelstrings);
+
+if ~isempty(assign_labels.labels{assign_labels.cur_track_num})
+  indx=sum(~labels_isempty(1:assign_labels.cur_track_num));
+  set(handles.labels_listbox,'value',indx,'max',1);
+else
+  set(handles.labels_listbox,'value',[],'max',2);
 end
 
 function refocus(handles)
@@ -734,6 +755,8 @@ end
 h3=figure(3);clf;
 all_points=cell2mat(unlab_near_track);
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
+view([az,el]);
+axis vis3d;
 a=axis;
 for k=1:length(plotting_frames)
   clf(h3); hold on;
@@ -1108,3 +1131,18 @@ switch choice
 end
 delete_current_track();
 update(handles);
+
+
+function labels_listbox_Callback(hObject, eventdata, handles)
+global assign_labels
+label_num = get(hObject,'Value');
+labels_isempty=cellfun(@isempty,assign_labels.labels);
+
+indx=find(cumsum(~labels_isempty)==label_num,1);
+change_track_num(indx);
+update(handles);
+
+function labels_listbox_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
