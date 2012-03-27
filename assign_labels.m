@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 26-Mar-2012 16:44:09
+% Last Modified by GUIDE v2.5 27-Mar-2012 16:25:54
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -122,91 +122,6 @@ if ~isequal(fn,0)
   update(handles);
 end
 
-function open_c3d_file(handles)
-global assign_labels
-if ispref('vicon_labeler','c3d_files') && ...
-    exist(getpref('vicon_labeler','c3d_files'),'dir')
-  pn=getpref('vicon_labeler','c3d_files');
-else
-  pn=uigetdir([],'Set the directory for your c3d files');
-  if pn~=0
-    setpref('vicon_labeler','c3d_files',pn);
-  end
-end
-[fn pn] = uigetfile('*.c3d','Pick file to label',pn);
-if ~isequal(fn,0)
-  setpref('vicon_labeler','c3d_files',pn);
-  assign_labels=[];
-  assign_labels.origin = 'c3d';
-  [point_array, frame_rate, trig_rt, trig_sig, start_f, end_f] = lc3d( [pn fn] );
-  frames=round((trig_rt-8)*frame_rate):round(trig_rt*frame_rate);
-  
-  for f=1:length(frames)
-    frame=frames(f);
-    unlabeled_bat{f,:}=cell2mat(cellfun(@(c) c.traj(frame,:)./1e3,point_array,...
-      'uniformoutput',0));
-  end
-  
-  %crop out obvious non-bat points
-  all_points=cell2mat(unlabeled_bat);
-  figure(1); clf; h=plot3(all_points(:,1),all_points(:,2),all_points(:,3),...
-    '.k');
-  grid on;
-  brush on;
-  axis vis3d;
-  fprintf(['Select points that are not the bat.',...
-    '\nHold SHIFT to select multiple points.',...
-    '\nHit DELETE to remove points.\n']);
-  
-  while 1
-    reply=input('Press enter when done: ','s');
-    if isempty(reply)
-      break;
-    end
-    pause(.05);
-  end
-  
-  plotted_points=[get(h,'XData')' get(h,'YData')' get(h,'ZData')'];
-  removed_points = all_points(isnan(plotted_points(:,3)),:);
-  remaining_points = all_points(~isnan(plotted_points(:,3)),:);
-  
-  disp('removing deleted points, this can take a while...');
-  if length(removed_points)<length(remaining_points)
-    UB=cellfun(@(c) setdiff(c,removed_points,'rows'),unlabeled_bat,...
-      'uniformoutput',0);
-  else
-    UB=cellfun(@(c) intersect(c,remaining_points,'rows'),unlabeled_bat,...
-      'uniformoutput',0);
-  end
-    
-  d3_analysed.unlabeled_bat=UB;
-  d3_analysed.fvideo=frame_rate;
-  
-  fname=[pn fn];
-  if findstr(fname,'/')
-    slashes = findstr(fname,'/');
-  else
-    slashes = findstr(fname,'\');
-  end
-  datecode=fname(slashes(end-3)+1:slashes(end-2)-1);
-  bat_name = fname(slashes(end-2)+1:slashes(end-1)-1);
-  trial_num = fname(slashes(end)+6:slashes(end)+7);
-  d3_analysed.trialcode = [bat_name '.' datecode '.' ...
-      num2str(trial_num,'%1.2d')];
-  
-  assign_labels.ratings_filename = '';
-  assign_labels.ratings_pathname = '';
-  assign_labels.rating = rate_all(d3_analysed);
-  assign_labels.d3_analysed = d3_analysed;
-  [assign_labels.tracks assign_labels.labels] = build_tracks_from_ratings(d3_analysed,...
-      assign_labels.rating);
-  load_label_items(handles);
-  assign_labels.edited = 1;
-  change_track_num(1);
-  set(handles.orig_rating_sort,'value',1);
-  initialize(handles);
-  update(handles);
-end
 
 function [tracks labels] = build_tracks_from_ratings(d3_analysed,rating)
 disp('Building tracks... this can take some time');
@@ -937,9 +852,6 @@ function varargout = assign_labels_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-function file_menu_Callback(hObject, eventdata, handles)
-
-
 function open_menu_Callback(hObject, eventdata, handles)
 if save_before_discard()
   return;
@@ -952,7 +864,7 @@ function open_c3d_menu_Callback(hObject, eventdata, handles)
 if save_before_discard()
   return;
 end
-open_c3d_file(handles);
+waitfor(c3d_edit);
 
 
 function save_menu_Callback(hObject, eventdata, handles)
