@@ -17,7 +17,7 @@ fnames={files.name};
 for k=1:length(fnames)
   d3_analysed = [];
   load([pn fnames{k}]);
-  label_ratings.rating = rate_all(d3_analysed);
+  label_ratings.rating = rate_all(d3_analysed.unlabeled_bat);
   label_ratings.d3_analysed = d3_analysed;
   save([pn '..\vicon_label_ratings\' fnames{k}],'label_ratings');
 end

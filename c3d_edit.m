@@ -22,7 +22,7 @@ function varargout = c3d_edit(varargin)
 
 % Edit the above text to modify the response to help c3d_edit
 
-% Last Modified by GUIDE v2.5 28-Mar-2012 16:01:59
+% Last Modified by GUIDE v2.5 29-Mar-2012 16:27:54
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -186,6 +186,9 @@ end
 
 
 function close_menu_Callback(hObject, eventdata, handles)
+global c3d_trial
+c3d_trial = [];
+delete(handles.figure1);
 
 
 
@@ -295,7 +298,7 @@ for k=1:length(queue)
   d3_analysed.ignore_segs=[];
   label_ratings.d3_analysed = d3_analysed;
   
-  label_ratings.rating = rate_all(d3_analysed);
+  label_ratings.rating = rate_all(d3_analysed.unlabeled_bat);
   
   save([queue{k}.save_pname queue{k}.save_fname],'label_ratings');
   
@@ -331,3 +334,64 @@ contents(selected_item)=[];
 
 set(handles.queue_listbox,'Value',selected_item-1);
 set(handles.queue_listbox,'string',contents);
+
+
+function start_autocrop_Callback(hObject, eventdata, handles)
+global c3d_trial
+
+figure(4);
+dcm_obj = datacursormode(gcf);
+set(dcm_obj,'DisplayStyle','datatip',...
+  'SnapToDataVertex','off','Enable','on')
+disp('Click a starting point from which to crop around and then press ENTER');
+pause
+c_info = getCursorInfo(dcm_obj);
+
+UB = c3d_trial.unlabeled_bat;
+[frame point] = get_frame_from_point(c_info.Position,UB);
+
+frames=1:length(UB);
+
+thresh_distance=.3;
+
+last_point = point;
+
+other_bat_points=cell(length(UB),1);
+
+for f=frame:length(frames)
+  other_points=UB{f};
+  
+  D = distance(other_points,last_point);
+  
+  other_bat_points{f} = other_points(D<=thresh_distance,:);
+  
+  curr_centroid = mean(other_bat_points{f},1);
+  if ~isnan(curr_centroid(1))
+    last_point = curr_centroid;
+  end
+  
+end
+
+last_point=point;
+for f=frame-1:-1:1
+  other_points=UB{f};
+  
+  D = distance(other_points,last_point);
+  
+  other_bat_points{f} = other_points(D<=thresh_distance,:);
+  
+  curr_centroid = mean(other_bat_points{f},1);
+  if ~isnan(curr_centroid(1))
+    last_point = curr_centroid;
+  end
+end
+
+all_bat=cell2mat(other_bat_points); 
+figure(5); 
+plot3(all_bat(:,1),all_bat(:,2),all_bat(:,3),'.k');
+axis equal;
+grid on;
+
+length(find(cellfun(@isempty,other_bat_points)))
+
+

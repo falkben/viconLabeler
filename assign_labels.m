@@ -800,8 +800,8 @@ c_info = getCursorInfo(dcm_obj);
 
 if ~isempty(c_info)
   
-  [frame point] = get_frame_from_point(c_info.Position,assign_labels.d3_analysed);
   unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
+  [frame point] = get_frame_from_point(c_info.Position,unlabeled_bat);
   if get(handles.use_all_radio,'value')
     other_points = unlabeled_bat;
   else
@@ -809,7 +809,7 @@ if ~isempty(c_info)
   end
   
   [track endings] = create_track(frame,point,other_points);
-  rating = rate_point(frame,point,assign_labels.d3_analysed);
+  rating = rate_point(frame,point,unlabeled_bat);
   assign_labels.cur_track_num = length(assign_labels.tracks)+1;
   assign_labels.tracks{assign_labels.cur_track_num}.points = track;
   assign_labels.tracks{assign_labels.cur_track_num}.endings = endings;
