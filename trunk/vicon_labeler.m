@@ -3,7 +3,7 @@ function [track d3_analysed] = vicon_labeler
 d3_analysed = load_trial;
 trialfig = plot_trial(d3_analysed);
 [point_indx point] = get_start_point(trialfig);
-frame = get_frame_from_point_indx(point_indx,d3_analysed);
+frame = get_frame_from_point_indx(point_indx,d3_analysed.unlabeled_bat);
 plot_point_subset(d3_analysed,frame,point);
 track = create_track(frame,point,d3_analysed);
 track = remove_duplicate_frames(track);

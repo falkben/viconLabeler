@@ -2,7 +2,7 @@ function tracks = auto_build_tracks(d3_analysed,rating)
 
 if nargin < 1 
   d3_analysed = load_trial();
-  rating = rate_all(d3_analysed);
+  rating = rate_all(d3_analysed.unlabeled_bat);
   DIAG=1;
 else
   DIAG=0;
