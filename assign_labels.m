@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 27-Mar-2012 16:25:54
+% Last Modified by GUIDE v2.5 29-Mar-2012 13:28:44
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -1100,3 +1100,12 @@ end
 
 function all_labels_as_options_Callback(hObject, eventdata, handles)
 update(handles);
+
+
+% --- Executes when selected object is changed in new_from_panel.
+function new_from_panel_SelectionChangeFcn(hObject, eventdata, handles)
+% hObject    handle to the selected object in new_from_panel 
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
