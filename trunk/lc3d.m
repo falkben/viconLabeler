@@ -123,14 +123,14 @@ trig_sig(:,2) = AnalogSignals(:,1);
 
 % Finally, find first significant rising edge of trigger signal, and return
 % that time as trig_rt
-I = find(diff(trig_sig(:,2))>1);
+I = find(diff(trig_sig(:,2))>1,1);
 if isempty(I)
-    I = find(diff(trig_sig(:,2))>0.2); % lower threshold
+    I = find(diff(trig_sig(:,2))>0.2,1); % lower threshold
 end
 if isempty(I)
     trig_rt = nan; % give-up
 else
-    trig_rt = trig_sig(I(1),1);
+    trig_rt = trig_sig(I,1);
 end
 
 %start and end frames
