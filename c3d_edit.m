@@ -169,6 +169,9 @@ if ~isequal(fn,0)
     unlabeled_bat{f,:}=cell2mat(cellfun(@(c) c.traj(frame,:)./1e3,point_array,...
       'uniformoutput',0));
   end
+  
+  unlabeled_bat=cellfun(@(c) c(c(:,1)~=0,:),unlabeled_bat,'uniformoutput',0);
+  
   c3d_trial.unlabeled_bat_original = unlabeled_bat;
   c3d_trial.unlabeled_bat = unlabeled_bat;
   c3d_trial.frame_rate = frame_rate;
@@ -339,59 +342,71 @@ set(handles.queue_listbox,'string',contents);
 function start_autocrop_Callback(hObject, eventdata, handles)
 global c3d_trial
 
-figure(4);
-dcm_obj = datacursormode(gcf);
-set(dcm_obj,'DisplayStyle','datatip',...
-  'SnapToDataVertex','off','Enable','on')
-disp('Click a starting point from which to crop around and then press ENTER');
-pause
-c_info = getCursorInfo(dcm_obj);
+thresh_distance=.3;
 
 UB = c3d_trial.unlabeled_bat;
-[frame point] = get_frame_from_point(c_info.Position,UB);
 
 frames=1:length(UB);
 
-thresh_distance=.3;
+frame=frames(round(length(frames)/2));
+% frame=randi(length(frames),1);
 
-last_point = point;
+new_UB=cell(length(UB),1);
+centroids=cell(length(UB),1);
 
-other_bat_points=cell(length(UB),1);
+for p = 1:size(UB{frame},1)
+  last_point = UB{frame}(p,:);
 
-for f=frame:length(frames)
-  other_points=UB{f};
-  
-  D = distance(other_points,last_point);
-  
-  other_bat_points{f} = other_points(D<=thresh_distance,:);
-  
-  curr_centroid = mean(other_bat_points{f},1);
-  if ~isnan(curr_centroid(1))
-    last_point = curr_centroid;
+  other_bat_points=cell(length(UB),1);
+
+  for f=frame:length(frames)
+    other_points=UB{f};
+
+    D = distance(other_points,last_point);
+
+    other_bat_points{f} = other_points(D<=thresh_distance,:);
+
+    curr_centroid = mean(other_bat_points{f},1);
+    if ~isnan(curr_centroid(1))
+      last_point = curr_centroid;
+    end
+
+  end
+
+  last_point=UB{frame}(p,:);
+  for f=frame-1:-1:1
+    other_points=UB{f};
+
+    D = distance(other_points,last_point);
+
+    other_bat_points{f} = other_points(D<=thresh_distance,:);
+
+    curr_centroid = mean(other_bat_points{f},1);
+    if ~isnan(curr_centroid(1))
+      last_point = curr_centroid;
+    end
   end
   
-end
+%   if length(find(cellfun(@isempty,other_bat_points))) < length(find(cellfun(@isempty,new_UB)))
+%     new_UB=other_bat_points;
+%   end
+%   if sum(cellfun(@length,other_bat_points)) > sum(cellfun(@length,new_UB))
+%     new_UB=other_bat_points;
+%   end
 
-last_point=point;
-for f=frame-1:-1:1
-  other_points=UB{f};
-  
-  D = distance(other_points,last_point);
-  
-  other_bat_points{f} = other_points(D<=thresh_distance,:);
-  
-  curr_centroid = mean(other_bat_points{f},1);
-  if ~isnan(curr_centroid(1))
-    last_point = curr_centroid;
+  if length(unique(cell2mat(other_bat_points),'rows')) > length(unique(cell2mat(new_UB),'rows'))
+    new_UB=other_bat_points;
   end
+
 end
 
-all_bat=cell2mat(other_bat_points); 
+all_bat=cell2mat(new_UB); 
 figure(5); 
 plot3(all_bat(:,1),all_bat(:,2),all_bat(:,3),'.k');
 axis equal;
 grid on;
 
-length(find(cellfun(@isempty,other_bat_points)))
+disp(['Num of empty frames: ' num2str(length(find(cellfun(@isempty,new_UB))))]);
+disp(['Num unique points: ' num2str(length(unique(all_bat,'rows')))]);
 
 
