@@ -43,6 +43,7 @@ save_d3_analysed(d3_analysed,autosave);
 
 all_p=cell2mat(new_UB);
 figure(1);plot3(all_p(:,1),all_p(:,2),all_p(:,3),'.k');
+axis equal; grid on;
 pause(.1)
 
 
@@ -196,11 +197,12 @@ for p = 1:size(points_at_frame,1)
 %   rotate3d on;grid on;view(3);axis equal;
 %   hold off;
 %   
-%   figure(5);
-%   all_bat=cell2mat(other_bat_points);
-%   plot3(all_bat(:,1),all_bat(:,2),all_bat(:,3),'.k');
-%   axis equal;rotate3d on;
-%   grid on;
+  figure(5);
+  all_bat=cell2mat(other_bat_points);
+  plot3(all_bat(:,1),all_bat(:,2),all_bat(:,3),'.k');
+  axis equal;rotate3d on;
+  grid on;
+  title(num2str(p));
 %   
 %   figure(2); plot(mean_distance);
 end
