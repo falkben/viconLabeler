@@ -23,6 +23,7 @@ end
 
 c3d_trial=open_c3d(c3dfname);
 if isempty(c3d_trial)
+  disp('problem loading c3d file');
   return;
 end
 
@@ -39,12 +40,21 @@ disp(['Num unique points: ' num2str(length(unique(all_bat,'rows')))]);
 
 [bat_sm bat_avg plot_frames ignore_frames]=extract_bat_postion(new_UB,autosave);
 d3_analysed = create_d3_analysed(c3d_trial,bat_avg,new_UB,ignore_frames);
-save_d3_analysed(d3_analysed,autosave);
 
 all_p=cell2mat(new_UB);
-figure(1);plot3(all_p(:,1),all_p(:,2),all_p(:,3),'.k');
-axis equal; grid on;
-pause(.1)
+figure(1);
+plot3(all_p(:,1),all_p(:,2),all_p(:,3),'.k');
+view(3);axis equal;
+a=axis;
+prev_points=cell2mat(c3d_trial.unlabeled_bat);
+plot3(prev_points(:,1),prev_points(:,2),prev_points(:,3),...
+  '.','color',[.5 .5 .5]);
+hold on;
+plot3(all_p(:,1),all_p(:,2),all_p(:,3),'.k');
+hold off;
+axis(a);grid on;
+drawnow;
+save_d3_analysed(d3_analysed,autosave);
 
 
 function save_d3_analysed(d3_analysed,autosave)
@@ -137,55 +147,48 @@ c3d_trial.fn = c3dfname;
 
 
 function new_UB = crop_trial(unlabeled_bat,frame,autosave,ntimesrun)
-thresh_distance=.3;
+thresh_distance=.4;
 
 UB = unlabeled_bat;
 frames=1:length(UB);
 
 if isempty(frame)
-  frame=randi(length(frames),1);
+  frame=randi([300,length(frames)-300],1);
 %   frame=frames(round(length(frames)/2));
 end
 
 new_UB=cell(length(UB),1);
-new_mean_dist=inf(length(UB),1);
 points_at_frame = unique(UB{frame},'rows');
 for p = 1:size(points_at_frame,1)
   other_bat_points=cell(length(UB),1);
-  mean_distance=inf(length(UB),1);
   
   last_point = points_at_frame(p,:);
   for f=frame:length(frames)
-    [other_bat_points{f} last_point mean_distance(f)] = ...
+    [other_bat_points{f} last_point] = ...
       grab_nearest_points(UB{f},last_point,thresh_distance);
   end
   
   last_point=points_at_frame(p,:);
   for f=frame-1:-1:1
-    [other_bat_points{f} last_point mean_distance(f)] = ...
+    [other_bat_points{f} last_point] = ...
       grab_nearest_points(UB{f},last_point,thresh_distance);
   end
-
-  %choose the one with the fewest empty frames... doesn't work because there are often lots
-  %of empty frames
-%   if length(find(cellfun(@isempty,other_bat_points))) < length(find(cellfun(@isempty,new_UB)))
   
-  %choose the one with the most unique points... doesn't work because with
-  %reflections from ladder, etc. we often get lots of different points
-%   if length(unique(cell2mat(other_bat_points),'rows')) > ...
-%       length(unique(cell2mat(new_UB),'rows'))
   
-  %choose the one with the smoothest trajectory...?
-  
-  %choose the one with a threshold # of unique points, with the lowest
-  %mean distance between the points of each frame
-  if length(unique(cell2mat(other_bat_points),'rows')) > 4e3 && ...
-      mean(mean_distance(~isnan(mean_distance))) < ...
-      mean(new_mean_dist(~isnan(new_mean_dist)))
-    new_UB=other_bat_points;
-    new_mean_dist=mean_distance;
-  end
-  
+%   figure(5);
+%   all_bat=cell2mat(other_bat_points);
+%   plot3(all_bat(:,1),all_bat(:,2),all_bat(:,3),'.k');
+%   axis equal;
+%   grid on;
+%   title(num2str(p));
+%   a=axis;
+%   UB_all=cell2mat(UB);
+%   plot3(UB_all(:,1),UB_all(:,2),UB_all(:,3),'.','color',[.5 .5 .5]);
+%   hold on;
+%   plot3(all_bat(:,1),all_bat(:,2),all_bat(:,3),'.k');
+%   hold off;
+%   axis(a);rotate3d on;grid on;
+%   
 %   last_point=points_at_frame(p,:);
 %   figure(1); clf; hold on;
 %   nearpoints=cell2mat(UB(max(frame-50,1):min(frame+50,length(UB))));
@@ -196,25 +199,25 @@ for p = 1:size(points_at_frame,1)
 %   plot3(other_bat_points{frame}(:,1),other_bat_points{frame}(:,2),other_bat_points{frame}(:,3),'og')
 %   rotate3d on;grid on;view(3);axis equal;
 %   hold off;
-%   
-  figure(5);
-  all_bat=cell2mat(other_bat_points);
-  plot3(all_bat(:,1),all_bat(:,2),all_bat(:,3),'.k');
-  axis equal;rotate3d on;
-  grid on;
-  title(num2str(p));
-%   
-%   figure(2); plot(mean_distance);
+    
+  %choose the one with a threshold # of unique points and range of points larger than...
+  bat_range=range(cell2mat(other_bat_points));
+  prev_range=range(cell2mat(new_UB));
+  if length(unique(cell2mat(other_bat_points),'rows')) > 4.5e3 && ...
+      (bat_range(1) > 2 && bat_range(2) > 2 && bat_range(3) > .75) && ...
+      sum(bat_range) > sum(prev_range)
+    new_UB=other_bat_points;
+  end
 end
 
 all_bat=cell2mat(new_UB);
 if  ntimesrun <= 5 && (isempty(all_bat) || length(unique(cell2mat(new_UB),'rows')) < 2e3)
-  frame=randi(length(frames),1);
+  frame=randi([300,length(frames)-300],1);
   new_UB=crop_trial(unlabeled_bat,frame,autosave,ntimesrun+1);
 end
 
 if ~isempty(find(~cellfun(@isempty,new_UB),1)) && (~exist('autosave','var') || ~autosave)
-  figure(5);clf;
+  figure(6);clf;
   all_bat=cell2mat(new_UB);
   plot3(all_bat(:,1),all_bat(:,2),all_bat(:,3),'.k');
   axis equal;
