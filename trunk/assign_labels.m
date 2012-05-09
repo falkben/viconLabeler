@@ -652,22 +652,6 @@ else
   labeled_colors = [];
 end
 
-function [lab_tracks_in_zoom lab_clrs_in_zoom lab_name_in_zoom]=get_labels_for_plotting(labels,plotting_frames)
-lab_tracks_in_zoom = {};
-lab_clrs_in_zoom = {};
-lab_name_in_zoom = {};
-for lab=1:length(labels)
-  lab_track = labels(lab).track.points;
-  lab_frames = [lab_track.frame];
-  isect_lab_track = intersect(lab_frames,plotting_frames);
-  if ~isempty(isect_lab_track)
-    lab_tracks_in_zoom{end+1} = lab_track;
-    lab_clrs_in_zoom{end+1} = labels(lab).color;
-    lab_name_in_zoom{end+1} = labels(lab).label;
-  end
-end
-
-
 function animate_zoom(saving,handles)
 global assign_labels
 
@@ -696,10 +680,14 @@ figure(2);
 
 if saving
   vid_frate = assign_labels.d3_analysed.fvideo / 20;
-  fname = [assign_labels.d3_analysed.trialcode '_track_' num2str(assign_labels.cur_track_num) '.avi'];
+  fname = [assign_labels.d3_analysed.trialcode '_track_'...
+    num2str(assign_labels.cur_track_num) '.mp4'];
   [status, result] = dos('echo %USERPROFILE%\Desktop');
   pn = result;
-  aviobj = avifile([pn(1:end-1) '\' fname],'compression','None','Fps',vid_frate);
+  aviobj = VideoWriter([pn(1:end-1) '\' fname],'MPEG-4');
+  aviobj.FrameRate = vid_frate;
+  aviobj.Quality = 95;
+  open(aviobj);
 end
 
 h3=figure(3);clf;
@@ -739,16 +727,16 @@ for k=1:length(plotting_frames)
   view([az,el]);
   grid on;
   if saving
-    currFrame = getframe(gcf);
-    aviobj = addframe(aviobj,currFrame);
+    currFrame = getframe(gca);
+    writeVideo(aviobj,currFrame);
   else
     pause(.02); %add another 20 milliseconds to each frame draw
   end
 end
 
 if saving
-  aviobj = close(aviobj);
-  system(['explorer.exe /select,' pn(1:end-1) '\' fname])
+  close(aviobj);
+  system(['explorer.exe /select,' pn(1:end-1) '\' fname]) %open file browser to video
   %encode the file?
 end
 
