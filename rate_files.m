@@ -11,15 +11,15 @@ else
   end
 end
 
-files=dir([pn '*.mat']);
+files=dir([pn '\*.mat']);
 fnames={files.name};
 
 for k=1:length(fnames)
   d3_analysed = [];
-  load([pn fnames{k}]);
+  load([pn '\' fnames{k}]);
   label_ratings.rating = rate_all(d3_analysed.unlabeled_bat);
   label_ratings.d3_analysed = d3_analysed;
-  save([pn '..\vicon_label_ratings\' fnames{k}],'label_ratings');
+  save([pn '\..\vicon_label_ratings_from_automated\' fnames{k}],'label_ratings');
 end
 
 system('shutdown -s');
