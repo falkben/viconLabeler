@@ -303,7 +303,7 @@ text(trial_start_loc(1),trial_start_loc(2)-.2,trial_start_loc(3)+.2,...
 text(trial_end_loc(1)+.2,trial_end_loc(2),trial_end_loc(3)+.2,...
   'END');
 
-axis vis3d;
+axis vis3d; axis equal;
 view([az,el]);
 grid on;
 
@@ -334,7 +334,7 @@ else
     'START');
   text(track_points(end,1),track_points(end,2),track_points(end,3)+.15,...
     'END');
-  axis vis3d;
+  axis vis3d; axis equal;
   view([az,el]);
   grid on;
 end
@@ -693,8 +693,8 @@ end
 h3=figure(3);clf;
 all_points=cell2mat(unlab_near_track);
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
+axis vis3d; axis equal;
 view([az,el]);
-axis vis3d;
 a=axis;
 for k=1:length(plotting_frames)
   clf(h3); hold on;
@@ -723,7 +723,6 @@ for k=1:length(plotting_frames)
     'END');
   text(a(1),a(3),num2str(frame));
   axis(a);
-  axis vis3d;
   view([az,el]);
   grid on;
   if saving
