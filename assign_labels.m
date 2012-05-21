@@ -75,13 +75,16 @@ else
   pn=uigetdir([],'Set the directory for your ratings file');
   if pn~=0
     setpref('vicon_labeler','ratings',pn);
+  else return;
   end
 end
 [fn pn] = uigetfile('*.mat','Pick file to label',pn);
 if ~isequal(fn,0)
   setpref('vicon_labeler','ratings',pn);
   assign_labels=[];
+  disp('Loading...')
   load([pn fn]);
+  disp('Loaded trial.')
   assign_labels.ratings_pathname=pn;
   assign_labels.ratings_filename=fn;
   assign_labels.rating = label_ratings.rating;
@@ -623,6 +626,7 @@ end
 label_ratings = assign_labels;
 label_ratings.ratings_pathname = pn;
 label_ratings.ratings_filename = fn;
+disp('Saving...');
 save([pn fn],'label_ratings');
 disp(['Saved at: ' datestr(now,14)]);
 
