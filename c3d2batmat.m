@@ -53,6 +53,7 @@ hold on;
 plot3(all_p(:,1),all_p(:,2),all_p(:,3),'.k');
 hold off;
 axis(a);grid on;
+axis equal;
 drawnow;
 save_d3_analysed(d3_analysed,autosave);
 
@@ -71,6 +72,7 @@ if ~isequal(pn,0)
   setpref('vicon_labeler','processed_vicon',pn);
   if autosave==0
     [FileName,PathName] = uiputfile('.mat','Save ratings file',[pn '\' d3_analysed.trialcode '.mat']);
+    setpref('vicon_labeler','processed_vicon',PathName(1:end-1));
   else
     PathName=[pn '\'];
     FileName=[d3_analysed.trialcode '.mat'];
@@ -153,7 +155,7 @@ UB = unlabeled_bat;
 frames=1:length(UB);
 
 if isempty(frame)
-  frame=randi([300,length(frames)-300],1);
+  frame=randi([length(frames)-900,length(frames)-100],1);
 %   frame=frames(round(length(frames)/2));
 end
 
@@ -203,10 +205,16 @@ for p = 1:size(points_at_frame,1)
   %choose the one with a threshold # of unique points and range of points larger than...
   bat_range=range(cell2mat(other_bat_points));
   prev_range=range(cell2mat(new_UB));
-  if length(unique(cell2mat(other_bat_points),'rows')) > 4.5e3 && ...
-      (bat_range(1) > 2 && bat_range(2) > 2 && bat_range(3) > .75) && ...
-      sum(bat_range) > sum(prev_range)
+  if length(unique(cell2mat(other_bat_points),'rows')) > 1e3 && ...
+      (bat_range(1) > 1.8 && bat_range(2) > 2.8 && bat_range(3) > 1.8) && ...
+      sum(bat_range) >= sum(prev_range)
     new_UB=other_bat_points;
+  else
+    figure(6);clf;
+    AB=cell2mat(other_bat_points);
+    plot3(AB(:,1),AB(:,2),AB(:,3),'.k');
+    axis equal;
+    grid on;
   end
 end
 
@@ -278,6 +286,7 @@ if nargin < 2 || ~autosave
   all_points=cell2mat(UB);
   plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
   grid on;
+  axis equal;
 end
 
 
