@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 29-Mar-2012 13:28:44
+% Last Modified by GUIDE v2.5 27-Sep-2012 15:38:26
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -340,6 +340,75 @@ else
   view([az,el]); axis equal;
   grid on;
 end
+
+if get(handles.photron_toggle,'Value')
+  plot_photron(handles)
+end
+
+function plot_photron(handles)
+global assign_labels
+
+d3_path = 'E:\d3\';
+addpath(d3_path);
+
+if ~isfield(assign_labels.d3_analysed,'calibration')
+  dots = strfind(assign_labels.d3_analysed.trialcode,'.');
+  datecode = datevec(assign_labels.d3_analysed.trialcode(dots(1)+1:dots(2)-1),...
+    'yyyymmdd');
+  year = num2str(datecode(1));
+  year_dir = dir([d3_path year '*']);
+  year_dir_pname = year_dir.name;
+
+  clb_files = dir([d3_path year_dir_pname '\' year '*']);
+  clb_fnames = {clb_files.name};
+  clb_datestr = cellfun(@(c) c(1:end-4), clb_fnames,'uniformoutput',0);
+  clb_datenums = cell2mat(cellfun(@(c) datenum(c,'yyyy.mm.dd'), clb_datestr,'uniformoutput',0));
+  clb_indx = find(clb_datenums < datenum(datecode), 1 , 'last');
+  clb_fname = [d3_path year_dir_pname '\' clb_fnames{clb_indx}];
+  calibration = load(clb_fname,'-mat');
+  assign_labels.d3_analysed.calibration = calibration;
+else
+  calibration = assign_labels.d3_analysed.calibration;
+end
+
+A=calibration.variable.A;
+
+c1_fname=get(handles.cam1_edit,'string');
+if ~isempty(c1_fname)
+  obj_C1 = VideoReader(c1_fname);
+end
+
+c2_fname=get(handles.cam2_edit,'string');
+if ~isempty(c2_fname)
+  obj_C2 = VideoReader(c2_fname);
+end
+
+track = assign_labels.tracks{assign_labels.cur_track_num}.points;
+[track_points track_frames] = get_track_points_frames(track);
+
+object_rot = align_vicon_with_d3(assign_labels.d3_analysed.trialcode,...
+  assign_labels.d3_analysed.unlabeled_bat{track_frames(1)},0);
+[xy1] = invdlt(A(:,1),[object_rot(:,1) object_rot(:,3) -object_rot(:,2)]);
+[xy2] = invdlt(A(:,2),[object_rot(:,1) object_rot(:,3) -object_rot(:,2)]);
+video1 = read(obj_C1,track_frames(1)/assign_labels.d3_analysed.fvideo*75);
+video2 = read(obj_C2,track_frames(1)/assign_labels.d3_analysed.fvideo*75);
+
+%cam1
+figure(4); clf;
+imshow(video1);
+hold on;
+plot(xy1(:,1),xy1(:,2),'.r','markersize',6);
+hold off;
+
+
+%cam2
+figure(5); clf;
+imshow(video2);
+hold on;
+plot(xy2(:,1),xy2(:,2),'.r','markersize',6);
+hold off;
+
+
 
 
 function set_track_info(handles)
@@ -725,8 +794,8 @@ for k=1:length(plotting_frames)
   text(track_points(end,1),track_points(end,2),track_points(end,3)+.15,...
     'END');
   text(a(1),a(3),num2str(frame));
+  view([az,el]);axis equal;
   axis(a);
-  view([az,el]);
   grid on;
   if saving
     currFrame = getframe(gca);
@@ -1099,3 +1168,81 @@ function new_from_panel_SelectionChangeFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
+% --- Executes on button press in photron_toggle.
+function photron_toggle_Callback(hObject, eventdata, handles)
+% hObject    handle to photron_toggle (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of photron_toggle
+
+
+
+function cam1_edit_Callback(hObject, eventdata, handles)
+% hObject    handle to cam1_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of cam1_edit as text
+%        str2double(get(hObject,'String')) returns contents of cam1_edit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function cam1_edit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to cam1_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function cam2_edit_Callback(hObject, eventdata, handles)
+% hObject    handle to cam2_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of cam2_edit as text
+%        str2double(get(hObject,'String')) returns contents of cam2_edit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function cam2_edit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to cam2_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in cam1_button.
+function cam1_button_Callback(hObject, eventdata, handles)
+global assign_labels
+% hObject    handle to cam1_button (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[filename, pathname] = uigetfile([assign_labels.ratings_pathname '..\photron\*cam1*.avi'],...
+  ['Select Cam1 Video for trial ' assign_labels.ratings_filename]);
+if ~isequal(filename,0)
+   set(handles.cam1_edit,'String',[pathname filename]);
+end
+
+% --- Executes on button press in cam2_button.
+function cam2_button_Callback(hObject, eventdata, handles)
+global assign_labels
+% hObject    handle to cam2_button (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[filename, pathname] = uigetfile([assign_labels.ratings_pathname '..\photron\*cam2*.avi'],...
+  ['Select Cam2 Video for trial ' assign_labels.ratings_filename]);
+if ~isequal(filename,0)
+   set(handles.cam2_edit,'String',[pathname filename]);
+end
