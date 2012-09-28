@@ -12,6 +12,10 @@ datecode = datevec(trialcode(dots(1)+1:dots(2)-1),...
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 origin_file=dir([origin_d3_dir datestr(datecode,'yyyy.mm.dd') '*_d3.mat']);
+if isempty(origin_file)
+  object_rot=[];
+  return;
+end
 origin_fname=origin_file.name;
 
 %origin

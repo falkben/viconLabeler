@@ -223,7 +223,9 @@ set(handles.labels_listbox,'enable','on');
 set(handles.prev_unlabeled,'enable','on');
 set(handles.all_labels_as_options,'enable','on');
 set(handles.labels_listbox,'Value',1);
-
+set(handles.photron_toggle,'Value',0);
+set(handles.cam1_edit,'String','');
+set(handles.cam2_edit,'String','');
 
 set(handles.figure1,'name',['Assign Labels: ' assign_labels.ratings_filename]);
 
@@ -345,7 +347,7 @@ if get(handles.photron_toggle,'Value')
   plot_photron(handles)
 end
 
-function plot_photron(handles)
+function plot_photron(handles,frame)
 global assign_labels
 
 d3_path = 'E:\d3\';
@@ -374,11 +376,15 @@ end
 A=calibration.variable.A;
 
 c1_fname=get(handles.cam1_edit,'string');
+c2_fname=get(handles.cam2_edit,'string');
+
+if isempty(c2_fname) && isempty(c1_fname)
+  return;
+end
+
 if ~isempty(c1_fname)
   obj_C1 = VideoReader(c1_fname);
 end
-
-c2_fname=get(handles.cam2_edit,'string');
 if ~isempty(c2_fname)
   obj_C2 = VideoReader(c2_fname);
 end
@@ -386,27 +392,40 @@ end
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 [track_points track_frames] = get_track_points_frames(track);
 
+if nargin < 2
+  frame = track_frames(1);
+end
+
 object_rot = align_vicon_with_d3(assign_labels.d3_analysed.trialcode,...
-  assign_labels.d3_analysed.unlabeled_bat{track_frames(1)},0);
-[xy1] = invdlt(A(:,1),[object_rot(:,1) object_rot(:,3) -object_rot(:,2)]);
-[xy2] = invdlt(A(:,2),[object_rot(:,1) object_rot(:,3) -object_rot(:,2)]);
-video1 = read(obj_C1,track_frames(1)/assign_labels.d3_analysed.fvideo*75);
-video2 = read(obj_C2,track_frames(1)/assign_labels.d3_analysed.fvideo*75);
+  assign_labels.d3_analysed.unlabeled_bat{frame},0);
+if ~isempty(object_rot)
+  [xy1] = invdlt(A(:,1),[object_rot(:,1) object_rot(:,3) -object_rot(:,2)]);
+  [xy2] = invdlt(A(:,2),[object_rot(:,1) object_rot(:,3) -object_rot(:,2)]);
+end
 
 %cam1
 figure(4); clf;
-imshow(video1);
-hold on;
-plot(xy1(:,1),xy1(:,2),'.r','markersize',6);
-hold off;
-
+if ~isempty(c1_fname)
+  video1 = read(obj_C1,frame/assign_labels.d3_analysed.fvideo*75);
+  imshow(video1);
+end
+if ~isempty(object_rot)
+  hold on;
+  plot(xy1(:,1),xy1(:,2),'.r','markersize',6);
+  hold off;
+end
 
 %cam2
 figure(5); clf;
-imshow(video2);
-hold on;
-plot(xy2(:,1),xy2(:,2),'.r','markersize',6);
-hold off;
+if ~isempty(c2_fname)
+  video2 = read(obj_C2,frame/assign_labels.d3_analysed.fvideo*75);
+  imshow(video2);
+end
+if ~isempty(object_rot)
+  hold on;
+  plot(xy2(:,1),xy2(:,2),'.r','markersize',6);
+  hold off;
+end
 
 
 
@@ -769,9 +788,14 @@ plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
 view([az,el]); axis equal;
 a=axis;
 for k=1:length(plotting_frames)
-  clf(h3); hold on;
-  
   frame=plotting_frames(k);
+  
+  if get(handles.photron_toggle,'Value')
+    plot_photron(handles,frame);
+  end
+  
+  figure(h3); clf(h3); hold on;
+  
   track_indx=find(track_frames == frame);
   if ~isempty(track_indx)
     plot3(track(track_indx).point(1),track(track_indx).point(2),track(track_indx).point(3),...
