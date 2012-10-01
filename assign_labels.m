@@ -347,10 +347,21 @@ if get(handles.photron_toggle,'Value')
   plot_photron(handles)
 end
 
-function plot_photron(handles,frame)
+function plot_photron(handles,frame,cam_num)
 global assign_labels
 
-d3_path = 'E:\d3\';
+if ispref('vicon_labeler','d3_path') && ...
+    exist(getpref('vicon_labeler','d3_path'),'dir')
+  d3_path=getpref('vicon_labeler','d3_path');
+else
+  d3_path=uigetdir([],'Locate the d3 directory');
+  if d3_path~=0
+    setpref('vicon_labeler','d3_path',d3_path);
+  else
+    return;
+  end
+end
+d3_path = [d3_path '\'];
 addpath(d3_path);
 
 if ~isfield(assign_labels.d3_analysed,'calibration')
@@ -382,11 +393,13 @@ if isempty(c2_fname) && isempty(c1_fname)
   return;
 end
 
-if ~isempty(c1_fname)
+if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
   obj_C1 = VideoReader(c1_fname);
+  c1_fvideo=75;
 end
-if ~isempty(c2_fname)
+if ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
   obj_C2 = VideoReader(c2_fname);
+  c2_fvideo=75;
 end
 
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
@@ -396,6 +409,9 @@ if nargin < 2
   frame = track_frames(1);
 end
 
+[lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
+  [assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}],frame);
+
 object_rot = align_vicon_with_d3(assign_labels.d3_analysed.trialcode,...
   assign_labels.d3_analysed.unlabeled_bat{frame},0);
 if ~isempty(object_rot)
@@ -403,28 +419,73 @@ if ~isempty(object_rot)
   [xy2] = invdlt(A(:,2),[object_rot(:,1) object_rot(:,3) -object_rot(:,2)]);
 end
 
-%cam1
-figure(4); clf;
-if ~isempty(c1_fname)
-  video1 = read(obj_C1,frame/assign_labels.d3_analysed.fvideo*75);
-  imshow(video1);
-end
+lab_indx=[];
+pts_rot_xy1={};
+pts_rot_xy2={};
 if ~isempty(object_rot)
-  hold on;
-  plot(xy1(:,1),xy1(:,2),'.r','markersize',6);
-  hold off;
+  for lab=1:length(lab_tracks_in_zoom)
+    lab_frames = [lab_tracks_in_zoom{lab}.frame];
+    [c lab_indx(lab)]=intersect(lab_frames,frame);
+    lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
+      length([lab_tracks_in_zoom{lab}.point])/3)';
+
+    pts_rot = align_vicon_with_d3(assign_labels.d3_analysed.trialcode,...
+      lab_points,0);
+    pts_rot_xy1{lab} = invdlt(A(:,1),[pts_rot(:,1) pts_rot(:,3) -pts_rot(:,2)]);
+    pts_rot_xy2{lab} = invdlt(A(:,2),[pts_rot(:,1) pts_rot(:,3) -pts_rot(:,2)]);
+  end
+end
+
+fvideo = assign_labels.d3_analysed.fvideo;
+vicon_frames = length(assign_labels.d3_analysed.unlabeled_bat);
+frame_time = (vicon_frames-frame)/fvideo;
+
+%cam1
+if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
+  figure(4);
+  c1frame = obj_C1.NumberOfFrames - round(frame_time*c1_fvideo);
+  if isfield(assign_labels,'photron') && isfield(assign_labels.photron,'c1frame')
+    if assign_labels.photron.c1frame ~= c1frame
+      assign_labels.photron.c1_video = read(obj_C1,c1frame);
+      assign_labels.photron.c1frame = c1frame;
+    end
+  else
+    assign_labels.photron.c1_video = read(obj_C1,c1frame);
+    assign_labels.photron.c1frame = c1frame;
+  end
+  imshow(assign_labels.photron.c1_video);
+  
+  if ~isempty(object_rot)
+    hold on;
+    plot(xy1(:,1),xy1(:,2),...
+      'ow','markersize',2,...
+      'markerfacecolor','w');
+    for lab=1:length(lab_tracks_in_zoom)
+      plot(pts_rot_xy1{lab}(lab_indx(lab),1),pts_rot_xy1{lab}(lab_indx(lab),2),...
+        '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
+    end
+    hold off;
+  end
 end
 
 %cam2
-figure(5); clf;
-if ~isempty(c2_fname)
-  video2 = read(obj_C2,frame/assign_labels.d3_analysed.fvideo*75);
+if  ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
+  figure(5);
+  c2frame = obj_C2.NumberOfFrames - round(frame_time*c2_fvideo);
+  video2 = read(obj_C2,c2frame);
   imshow(video2);
-end
-if ~isempty(object_rot)
-  hold on;
-  plot(xy2(:,1),xy2(:,2),'.r','markersize',6);
-  hold off;
+  
+  if ~isempty(object_rot)
+    hold on;
+    plot(xy2(:,1),xy2(:,2),...
+      'ow','markersize',2,...
+      'markerfacecolor','w');
+    for lab=1:length(lab_tracks_in_zoom)
+      plot(pts_rot_xy2{lab}(lab_indx(lab),1),pts_rot_xy2{lab}(lab_indx(lab),2),...
+        '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
+    end
+    hold off;
+  end
 end
 
 
@@ -789,11 +850,7 @@ view([az,el]); axis equal;
 a=axis;
 for k=1:length(plotting_frames)
   frame=plotting_frames(k);
-  
-  if get(handles.photron_toggle,'Value')
-    plot_photron(handles,frame);
-  end
-  
+    
   figure(h3); clf(h3); hold on;
   
   track_indx=find(track_frames == frame);
@@ -833,6 +890,21 @@ if saving
   close(aviobj);
   system(['explorer.exe /select,' pn(1:end-1) '\' fname]) %open file browser to video
   %encode the file?
+end
+
+%cam 1
+for k=1:length(plotting_frames)
+  frame=plotting_frames(k);
+  if get(handles.photron_toggle,'Value')
+    plot_photron(handles,frame,1);
+  end
+end
+%cam2
+for k=1:length(plotting_frames)
+  frame=plotting_frames(k);
+  if get(handles.photron_toggle,'Value')
+    plot_photron(handles,frame,2);
+  end
 end
 
 jFrame.setMinimized(false);
