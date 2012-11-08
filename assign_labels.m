@@ -900,7 +900,6 @@ global assign_labels
 jFrame = get(handles.figure1,'JavaFrame');
 jFrame.setMinimized(true);
 
-
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 [track_points track_frames] = get_track_points_frames(track);
 
@@ -937,6 +936,7 @@ plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
 view([az,el]); axis equal;
 a=axis;
 for k=1:length(plotting_frames)
+  tic
   frame=plotting_frames(k);
     
   figure(h3); clf(h3); hold on;
@@ -966,11 +966,16 @@ for k=1:length(plotting_frames)
   view([az,el]);axis equal;
   axis(a);
   grid on;
+  
+  tt=toc;
   if saving
     currFrame = getframe(gca);
     writeVideo(aviobj,currFrame);
   else
-    pause(.02); %add another 20 milliseconds to each frame draw
+    delay_time=1/24-tt;
+    if delay_time > 0
+      pause(delay_time);
+    end
   end
 end
 
