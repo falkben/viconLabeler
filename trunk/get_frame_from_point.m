@@ -3,7 +3,7 @@ function [frame point] = get_frame_from_point(point,unlabeled_bat)
 
 all_points=cell2mat(unlabeled_bat);
 
-point_diff = all_points - ones(length(all_points),1)*point;
+point_diff = all_points - ones(size(all_points,1),1)*point;
 
 [M find_indx]=min(distance([0 0 0],point_diff));
 
