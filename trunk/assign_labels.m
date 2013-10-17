@@ -101,7 +101,11 @@ if ~isequal(fn,0)
     assign_labels.tracks = label_ratings.tracks;
     assign_labels.labels = label_ratings.labels;
     assign_labels.label_items = label_ratings.label_items;
-    assign_labels.cur_track_num = label_ratings.cur_track_num;
+    if isfield(label_ratings,'cur_track_num')
+      assign_labels.cur_track_num = label_ratings.cur_track_num;
+    else
+      assign_labels.cur_track_num = 1;
+    end
     markers = label_ratings.label_items.markers;
     set_label_popup(markers,handles);
     if isfield(label_ratings,'sorted_by')
