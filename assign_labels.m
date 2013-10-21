@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 02-Oct-2012 16:15:31
+% Last Modified by GUIDE v2.5 21-Oct-2013 16:27:04
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -228,6 +228,8 @@ set(handles.prev_unlabeled,'enable','on');
 set(handles.all_labels_as_options,'enable','on');
 set(handles.labels_listbox,'enable','on');
 set(handles.labels_listbox,'Value',1);
+set(handles.animate_from_beg_radiobutton,'enable','on');
+set(handles.animate_from_cur_radiobutton,'enable','on');
 
 set(handles.photron_toggle,'enable','on');
 set(handles.cam1_edit,'enable','on');
@@ -1515,3 +1517,9 @@ if ~isempty(c2file)
   set(handles.cam2_edit,'tooltipString',[vicon_data_path '..\photron\' c2file.name]);
   set_photron_fps([vicon_data_path '..\photron\'],c2file.name,handles);
 end
+
+function animate_from_beg_radiobutton_Callback(hObject, eventdata, handles)
+animate_whole_trial(handles,'beg');
+
+function animate_from_cur_radiobutton_Callback(hObject, eventdata, handles)
+animate_whole_trial(handles,'cur');
