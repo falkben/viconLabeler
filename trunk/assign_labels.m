@@ -1519,7 +1519,30 @@ if ~isempty(c2file)
 end
 
 function animate_from_beg_radiobutton_Callback(hObject, eventdata, handles)
-animate_whole_trial(handles,'beg');
+animate_trial(handles,'beg')
 
 function animate_from_cur_radiobutton_Callback(hObject, eventdata, handles)
-animate_whole_trial(handles,'cur');
+animate_trial(handles,'cur');
+
+function animate_trial(handles,from_when)
+global assign_labels
+[ff,view_az]=animate_whole_trial(handles,from_when);
+%get all the tracks index at this frame
+track_start_frames=cellfun(@(c) c.points(1).frame,assign_labels.tracks);
+track_end_frames=cellfun(@(c) c.points(end).frame,assign_labels.tracks);
+t_ii=find(ff >= track_start_frames & ff <= track_end_frames);
+l_ii=find(~cellfun(@isempty,assign_labels.labels(t_ii)));
+
+if ~isempty(l_ii) %returning the first labeled track
+  ii=t_ii(l_ii);
+  [~,I]=min(track_start_frames(ii));
+  assign_labels.cur_track_num = ii(I);
+else %if no labeled tracks, returning the first track in the frame
+  [~,I]=min(track_start_frames(t_ii));
+  assign_labels.cur_track_num = t_ii(I);
+end
+figure(2);
+[~,el]=view;
+view(view_az,el);
+update(handles);
+
