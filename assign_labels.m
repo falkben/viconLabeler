@@ -22,24 +22,24 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 21-Oct-2013 16:27:04
+% Last Modified by GUIDE v2.5 23-Oct-2013 16:26:45
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
-                   'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @assign_labels_OpeningFcn, ...
-                   'gui_OutputFcn',  @assign_labels_OutputFcn, ...
-                   'gui_LayoutFcn',  [] , ...
-                   'gui_Callback',   []);
+  'gui_Singleton',  gui_Singleton, ...
+  'gui_OpeningFcn', @assign_labels_OpeningFcn, ...
+  'gui_OutputFcn',  @assign_labels_OutputFcn, ...
+  'gui_LayoutFcn',  [] , ...
+  'gui_Callback',   []);
 if nargin && ischar(varargin{1})
-    gui_State.gui_Callback = str2func(varargin{1});
+  gui_State.gui_Callback = str2func(varargin{1});
 end
 
 if nargout
-    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+  [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
 else
-    gui_mainfcn(gui_State, varargin{:});
+  gui_mainfcn(gui_State, varargin{:});
 end
 % End initialization code - DO NOT EDIT
 
@@ -179,7 +179,7 @@ for k=1:length(markers)
   label_popup_txt{k} = ['<HTML><FONT COLOR="' cname '">'...
     markers(k).name ': ' markers(k).color ...
     '</FONT></HTML>'];
-%   label_popup_txt{k}=[markers(k).name ': ' markers(k).color];
+  %   label_popup_txt{k}=[markers(k).name ': ' markers(k).color];
 end
 set(handles.label_popup,'string',[{''} label_popup_txt]);
 
@@ -228,8 +228,8 @@ set(handles.prev_unlabeled,'enable','on');
 set(handles.all_labels_as_options,'enable','on');
 set(handles.labels_listbox,'enable','on');
 set(handles.labels_listbox,'Value',1);
-set(handles.animate_from_beg_radiobutton,'enable','on');
-set(handles.animate_from_cur_radiobutton,'enable','on');
+set(handles.animate_from_beg,'enable','on');
+set(handles.animate_from_cur,'enable','on');
 
 set(handles.photron_toggle,'enable','on');
 set(handles.cam1_edit,'enable','on');
@@ -357,7 +357,7 @@ else
     'START');
   text(track_points(end,1),track_points(end,2),track_points(end,3)+.15,...
     'END');
-%   axis vis3d;
+  %   axis vis3d;
   view([az,el]); axis equal;
   grid on;
 end
@@ -400,7 +400,7 @@ if ~isfield(assign_labels.d3_analysed,'calibration')
   year = num2str(datecode(1));
   year_dir = dir([d3_path year '*']);
   year_dir_pname = year_dir.name;
-
+  
   clb_files = dir([d3_path year_dir_pname '\' year '*']);
   clb_fnames = {clb_files.name};
   clb_datestr = cellfun(@(c) c(1:end-4), clb_fnames,'uniformoutput',0);
@@ -450,7 +450,7 @@ end
 track_indx=find(track_frames == frame);
 if ~isempty(track_indx)
   track_rot = align_vicon_with_d3(assign_labels.d3_analysed.trialcode,...
-      track(track_indx).point,0);
+    track(track_indx).point,0);
   track_rot_xy1 = invdlt(A(:,1),[track_rot(:,1) track_rot(:,3) -track_rot(:,2)]);
   track_rot_xy2 = invdlt(A(:,2),[track_rot(:,1) track_rot(:,3) -track_rot(:,2)]);
 end
@@ -464,7 +464,7 @@ if ~isempty(object_rot)
     [c lab_indx(lab)]=intersect(lab_frames,frame);
     lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
       length([lab_tracks_in_zoom{lab}.point])/3)';
-
+    
     pts_rot = align_vicon_with_d3(assign_labels.d3_analysed.trialcode,...
       lab_points,0);
     pts_rot_xy1{lab} = invdlt(A(:,1),[pts_rot(:,1) pts_rot(:,3) -pts_rot(:,2)]);
@@ -524,8 +524,8 @@ if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
         '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
     end
     hold off;
-%     axis([min(xy1(:,1))-wind_size max(xy1(:,1))+wind_size...
-%       min(xy1(:,2))-wind_size max(xy1(:,2))+wind_size]);
+    %     axis([min(xy1(:,1))-wind_size max(xy1(:,1))+wind_size...
+    %       min(xy1(:,2))-wind_size max(xy1(:,2))+wind_size]);
   end
   title('Cam 1');
 end
@@ -576,8 +576,8 @@ if  ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
         '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
     end
     hold off;
-%     axis([min(xy2(:,1))-wind_size max(xy2(:,1))+wind_size...
-%       min(xy2(:,2))-wind_size max(xy2(:,2))+wind_size]);
+    %     axis([min(xy2(:,1))-wind_size max(xy2(:,1))+wind_size...
+    %       min(xy2(:,2))-wind_size max(xy2(:,2))+wind_size]);
   end
   title('Cam 2');
 end
@@ -596,14 +596,14 @@ if ~isempty(assign_labels.tracks{assign_labels.cur_track_num}.points)
     num2str(assign_labels.tracks{assign_labels.cur_track_num}.points(1).frame));
   set(handles.length_text,'string',...
     num2str(length(assign_labels.tracks{assign_labels.cur_track_num}.points)));
-
+  
   sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
   [B,IX] = sort(sort_value);
-
+  
   [sm_speed dir] = get_track_vel(assign_labels.tracks{assign_labels.cur_track_num}.points);
   spd_var = var(sm_speed);
   dir_var = var(dir);
-
+  
   rank=find(IX==assign_labels.cur_track_num);
   set(handles.ranking_text,'string',...
     [num2str(rank/length(assign_labels.tracks)* 100,'%2.1f') ' %']);
@@ -656,26 +656,26 @@ rotate3d on;
 c_info = getCursorInfo(dcm_obj);
 
 if ~isempty(c_info)
-
+  
   all_tracks=cell2mat(assign_labels.tracks);
   merged_tracks=[all_tracks.points];
   merged_track_points = reshape([merged_tracks.point],3,length([merged_tracks.point])/3)';
-
+  
   point_diff = merged_track_points - ones(length(merged_track_points),1)*c_info.Position;
   [M find_indx]=min(distance([0 0 0],point_diff));
-
+  
   point = merged_track_points(find_indx,:);
   ia=find(ismember(merged_track_points,point,'rows'));
-
+  
   track_lengths = cellfun(@(c) length(c.points),assign_labels.tracks);
-
+  
   if length(ia) == 1
     track_indx = find(cumsum(track_lengths) - ia >= 0,1);
   else %choose the one with the best rating
     for k=1:length(ia)
       t_indx = find(cumsum(track_lengths) - ia(k) >= 0,1);
       track = assign_labels.tracks{t_indx};
-
+      
       [sm_speed dir] = get_track_vel(track.points);
       spd_var = var(sm_speed);
       dir_var = var(dir);
@@ -684,9 +684,9 @@ if ~isempty(c_info)
     [M best_rating] = min(rating);
     track_indx = find(cumsum(track_lengths) - ia(best_rating) >= 0,1);
   end
-    
+  
   change_track_num(track_indx);
-
+  
 end
 
 update(handles);
@@ -754,11 +754,15 @@ global assign_labels
 track_points = get_track_points_frames(track.points);
 
 track_indx = setdiff(1:length(assign_labels.tracks),assign_labels.cur_track_num);
-edited_tracks = cellfun(@(c) {remove_points_from_track(c,track_points)},...
+edited_tracks=cellfun(@(c) {remove_points_from_track(c,track_points)},...
   assign_labels.tracks(track_indx));
-
 assign_labels.tracks(track_indx) = edited_tracks;
 
+non_empty_labels=intersect(find(~cellfun(@isempty,assign_labels.labels)),track_indx)';
+for k=non_empty_labels
+  assign_labels.labels{k}.track=...
+    remove_points_from_track(assign_labels.labels{k}.track,track_points);
+end
 
 function track_labeled(selected_label_item,marker_names)
 global assign_labels
@@ -770,7 +774,7 @@ if LI_indx > 0
   
   for k=1:length(all_ms)
     names_to_match{k}=['<HTML><FONT COLOR="' conv_cspec_to_cname(all_ms(k).color) '">'...
-    all_ms(k).name ': ' all_ms(k).color '</FONT></HTML>'];
+      all_ms(k).name ': ' all_ms(k).color '</FONT></HTML>'];
   end
   
   [m ia] = intersect(names_to_match,marker_names);
@@ -837,7 +841,7 @@ if ~isempty(c_info)
   
   old_track = assign_labels.tracks{assign_labels.cur_track_num}.points;
   old_track_points = get_track_points_frames(old_track);
-    
+  
   point_diff = old_track_points - ones(length(old_track_points),1)*selected_point;
   [M find_indx]=min(distance([0 0 0],point_diff));
   
@@ -944,7 +948,7 @@ a=axis;
 for k=1:length(plotting_frames)
   tic
   frame=plotting_frames(k);
-    
+  
   figure(h3); clf(h3); hold on;
   
   track_indx=find(track_frames == frame);
@@ -996,13 +1000,13 @@ if get(handles.photron_toggle,'Value')
   for k=1:length(plotting_frames)
     frame=plotting_frames(k);
     plot_photron(handles,frame,1,plotting_frames);
-%     pause(.02);
+    %     pause(.02);
   end
   %cam2
   for k=1:length(plotting_frames)
     frame=plotting_frames(k);
     plot_photron(handles,frame,2,plotting_frames);
-%     pause(.02);
+    %     pause(.02);
   end
 end
 
@@ -1123,7 +1127,7 @@ set(handles.photron_fps_edit,'string',fps);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACKS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-function varargout = assign_labels_OutputFcn(hObject, eventdata, handles) 
+function varargout = assign_labels_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
@@ -1160,9 +1164,9 @@ end
 
 [FileName,PathName] = uiputfile('*.mat',[],[pn assign_labels.ratings_filename]);
 if isequal(FileName,0) || isequal(PathName,0)
- return;
+  return;
 else
- save_trial(FileName,PathName);
+  save_trial(FileName,PathName);
 end
 
 function track_num_edit_Callback(hObject, eventdata, handles)
@@ -1171,7 +1175,7 @@ update(handles);
 
 function track_num_edit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1204,7 +1208,7 @@ update(handles);
 
 function label_popup_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1244,14 +1248,14 @@ update(handles);
 function rebuild_all_tracks_Callback(hObject, eventdata, handles)
 global assign_labels
 choice = questdlg('Continuing will wipe all tracks and labels', ...
-	'Rebuild all tracks', ...
-	'OK','Cancel','Cancel');
+  'Rebuild all tracks', ...
+  'OK','Cancel','Cancel');
 switch choice
   case 'Cancel'
     return;
 end
 [assign_labels.tracks assign_labels.labels] = build_tracks_from_ratings(assign_labels.d3_analysed,...
-assign_labels.rating);
+  assign_labels.rating);
 assign_labels.edited = 1;
 update(handles);
 
@@ -1283,7 +1287,7 @@ update(handles);
 
 function pts_before_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1295,7 +1299,7 @@ update(handles);
 
 function pts_after_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1323,7 +1327,7 @@ end
 
 function thresh_length_edit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1337,7 +1341,7 @@ end
 
 function thresh_rank_edit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1369,7 +1373,7 @@ update(handles);
 
 function labels_listbox_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1379,7 +1383,7 @@ update(handles);
 
 % --- Executes when selected object is changed in new_from_panel.
 function new_from_panel_SelectionChangeFcn(hObject, eventdata, handles)
-% hObject    handle to the selected object in new_from_panel 
+% hObject    handle to the selected object in new_from_panel
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
@@ -1412,7 +1416,7 @@ function cam1_edit_CreateFcn(hObject, eventdata, handles)
 % Hint: edit controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1435,7 +1439,7 @@ function cam2_edit_CreateFcn(hObject, eventdata, handles)
 % Hint: edit controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1448,9 +1452,9 @@ global assign_labels
 [filename, pathname] = uigetfile([assign_labels.ratings_pathname '..\photron\*cam1*.avi'],...
   ['Select Cam1 Video for trial ' assign_labels.ratings_filename]);
 if ~isequal(filename,0)
-   set(handles.cam1_edit,'String',[pathname filename]);
-   set(handles.cam1_edit,'tooltipString',[pathname filename]);
-   set_photron_fps(pathname,filename,handles);
+  set(handles.cam1_edit,'String',[pathname filename]);
+  set(handles.cam1_edit,'tooltipString',[pathname filename]);
+  set_photron_fps(pathname,filename,handles);
 end
 
 % --- Executes on button press in cam2_button.
@@ -1462,9 +1466,9 @@ global assign_labels
 [filename, pathname] = uigetfile([assign_labels.ratings_pathname '..\photron\*cam2*.avi'],...
   ['Select Cam2 Video for trial ' assign_labels.ratings_filename]);
 if ~isequal(filename,0)
-   set(handles.cam2_edit,'String',[pathname filename]);
-   set(handles.cam2_edit,'tooltipString',[pathname filename]);
-   set_photron_fps(pathname,filename,handles);
+  set(handles.cam2_edit,'String',[pathname filename]);
+  set(handles.cam2_edit,'tooltipString',[pathname filename]);
+  set_photron_fps(pathname,filename,handles);
 end
 
 
@@ -1487,7 +1491,7 @@ function photron_fps_edit_CreateFcn(hObject, eventdata, handles)
 % Hint: edit controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+  set(hObject,'BackgroundColor','white');
 end
 
 
@@ -1518,18 +1522,26 @@ if ~isempty(c2file)
   set_photron_fps([vicon_data_path '..\photron\'],c2file.name,handles);
 end
 
-function animate_from_beg_radiobutton_Callback(hObject, eventdata, handles)
+function animate_from_beg_Callback(hObject, eventdata, handles)
 animate_trial(handles,'beg')
 
-function animate_from_cur_radiobutton_Callback(hObject, eventdata, handles)
+function animate_from_cur_Callback(hObject, eventdata, handles)
 animate_trial(handles,'cur');
 
 function animate_trial(handles,from_when)
 global assign_labels
 [ff,view_az]=animate_whole_trial(handles,from_when);
 %get all the tracks index at this frame
-track_start_frames=cellfun(@(c) c.points(1).frame,assign_labels.tracks);
-track_end_frames=cellfun(@(c) c.points(end).frame,assign_labels.tracks);
+
+track_start_frames=nan(length(assign_labels.tracks),1);
+track_end_frames=nan(length(assign_labels.tracks),1);
+for gg=1:length(assign_labels.tracks)
+  if ~isempty(assign_labels.tracks{gg}.points)
+    track_start_frames(gg)=assign_labels.tracks{gg}.points(1).frame;
+    track_end_frames(gg)=assign_labels.tracks{gg}.points(end).frame;
+  end
+end
+
 t_ii=find(ff >= track_start_frames & ff <= track_end_frames);
 l_ii=find(~cellfun(@isempty,assign_labels.labels(t_ii)));
 
@@ -1546,3 +1558,12 @@ figure(2);
 view(view_az,el);
 update(handles);
 
+
+
+function animate_all_fps_Callback(hObject, eventdata, handles)
+
+% --- Executes during object creation, after setting all properties.
+function animate_all_fps_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+  set(hObject,'BackgroundColor','white');
+end

@@ -6,14 +6,17 @@ global assign_labels
 jFrame = get(handles.figure1,'JavaFrame');
 jFrame.setMinimized(true);
 
-track_start_frames=cellfun(@(c) c.points(1).frame,assign_labels.tracks);
-track_end_frames=cellfun(@(c) c.points(end).frame,assign_labels.tracks);
+tracks=assign_labels.tracks(cellfun(@(c) ~isempty(c.points),assign_labels.tracks));
+labels=assign_labels.labels(cellfun(@(c) ~isempty(c.points),assign_labels.tracks));
+
+track_start_frames=cellfun(@(c) c.points(1).frame,tracks);
+track_end_frames=cellfun(@(c) c.points(end).frame,tracks);
 if strcmp(starting_area,'beg')
   start_frame = min(track_start_frames);
 else
-  start_frame = track_start_frames(assign_labels.cur_track_num);
+  start_frame = assign_labels.tracks{assign_labels.cur_track_num}.points(1).frame;
 end
-end_frame = max(track_start_frames);
+end_frame = max(track_end_frames);
 
 all_C=assign_labels.d3_analysed.object(1).video;
 sm_C = sm_centroid(all_C,200,0);
@@ -31,10 +34,11 @@ pbrewind = uicontrol(f3,'Style','togglebutton','value',0,...
   'String','<',...
   'Position',[10 20 30 40],'fontsize',16); %stop
 
-des_frate=20;%fps
+des_frate=str2double(get(handles.animate_all_fps,'String'));%fps
 
+warning('off','MATLAB:hg:patch:RGBColorDataNotSupported');
 ff=start_frame;
-while ff < end_frame
+while ff <= end_frame
   %check pause and/or stop button
   if get(pbstop,'value')
     set(pbstop,'value',0)
@@ -69,11 +73,11 @@ while ff < end_frame
     t_pp=nan(length(t_ii),3);
     cc=zeros(length(t_ii),3);
     for tt=1:length(t_ii)
-      t_ff=[assign_labels.tracks{t_ii(tt)}.points.frame] == ff;
-      t_pp(tt,:)=assign_labels.tracks{t_ii(tt)}.points(t_ff).point;
+      t_ff=[tracks{t_ii(tt)}.points.frame] == ff;
+      t_pp(tt,:)=tracks{t_ii(tt)}.points(t_ff).point;
       
       %get the labels of all those points
-      lab=assign_labels.labels{t_ii(tt)};
+      lab=labels{t_ii(tt)};
       if ~isempty(lab)
         cc(tt,:) = bitget(find('krgybmcw'==lab.color)-1,1:3);
       end
@@ -81,7 +85,6 @@ while ff < end_frame
     
     %plot the points
     scatter3(a3,t_pp(:,1),t_pp(:,2),t_pp(:,3),50,cc,'fill');
-    
     grid(a3,'off');
     set(a3,'xticklabel',[],'yticklabel',[],'zticklabel',[]);
     
@@ -106,7 +109,12 @@ while ff < end_frame
     end
     drawnow;
   end
+  view(az,el)
   ff=ff+1;
 end
-
+if ff>end_frame
+  ff=ff-1;
+  disp('animated whole trial')
+end
+warning('on','MATLAB:hg:patch:RGBColorDataNotSupported');
 jFrame.setMinimized(false);
