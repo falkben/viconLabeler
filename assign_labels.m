@@ -96,7 +96,7 @@ if ~isequal(fn,0)
     load_label_items(handles);
     assign_labels.edited = 1;
     change_track_num(1);
-    set(handles.orig_rating_sort,'value',1);
+    set(handles.frame_sort,'value',1);
   else
     assign_labels.tracks = label_ratings.tracks;
     assign_labels.labels = label_ratings.labels;
@@ -111,7 +111,9 @@ if ~isequal(fn,0)
     if isfield(label_ratings,'sorted_by')
       assign_labels.sorted_by = label_ratings.sorted_by;
     else
-      assign_labels.sorted_by = 'orig_rating';
+      assign_labels.sorted_by = 'frame';
+      sort_tracks(handles);
+      assign_labels.cur_track_num = 1;
     end
     switch assign_labels.sorted_by
       case 'orig_rating'
