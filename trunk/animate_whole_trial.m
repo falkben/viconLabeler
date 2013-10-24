@@ -74,7 +74,9 @@ while ff <= end_frame
     cc=zeros(length(t_ii),3);
     for tt=1:length(t_ii)
       t_ff=[tracks{t_ii(tt)}.points.frame] == ff;
-      t_pp(tt,:)=tracks{t_ii(tt)}.points(t_ff).point;
+      if ~isempty(find(t_ff,1))
+        t_pp(tt,:)=tracks{t_ii(tt)}.points(t_ff).point;
+      end
       
       %get the labels of all those points
       lab=labels{t_ii(tt)};
