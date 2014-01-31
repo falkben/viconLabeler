@@ -95,8 +95,10 @@ if ~isequal(fn,0)
       label_ratings.rating);
     load_label_items(handles);
     assign_labels.edited = 1;
-    change_track_num(1);
     set(handles.frame_sort,'value',1);
+    change_track_num(1);
+    sort_tracks(handles);
+    change_track_num(1);
   else
     assign_labels.tracks = label_ratings.tracks;
     assign_labels.labels = label_ratings.labels;
