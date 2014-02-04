@@ -1555,6 +1555,10 @@ if ~isempty(l_ii) %returning the first labeled track
   assign_labels.cur_track_num = ii(I);
 else %if no labeled tracks, returning the first track in the frame
   [~,I]=min(track_start_frames(t_ii));
+  if isempty(I)
+    [~,t_ii]=min(abs(track_start_frames-ff));
+    I=1;
+  end
   assign_labels.cur_track_num = t_ii(I);
 end
 figure(2);
