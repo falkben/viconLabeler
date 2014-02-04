@@ -39,6 +39,8 @@ des_frate=str2double(get(handles.animate_all_fps,'String'));%fps
 warning('off','MATLAB:hg:patch:RGBColorDataNotSupported');
 ff=start_frame;
 while ff <= end_frame
+  tic
+  
   %check pause and/or stop button
   if get(pbstop,'value')
     set(pbstop,'value',0)
@@ -64,18 +66,16 @@ while ff <= end_frame
   end
   
   centroid=sm_C(ff,:);
-  if isempty(find(isnan(all_C(ff,:)),1))
-    tic
-    
-    %get all the tracks index at this frame
-    t_ii=find(ff >= track_start_frames & ff <= track_end_frames);
-    
+  
+  %get all the tracks index at this frame
+  t_ii=find(ff >= track_start_frames & ff <= track_end_frames);
+  if isfinite(all_C(ff,1)) && ~isempty(t_ii)
     t_pp=nan(length(t_ii),3);
     cc=zeros(length(t_ii),3);
     for tt=1:length(t_ii)
       t_ff=[tracks{t_ii(tt)}.points.frame] == ff;
       if ~isempty(find(t_ff,1))
-        t_pp(tt,:)=tracks{t_ii(tt)}.points(t_ff).point;
+        t_pp(tt,:)=tracks{t_ii(tt)}.points(t_ff).point-centroid;
       end
       
       %get the labels of all those points
@@ -87,33 +87,31 @@ while ff <= end_frame
     
     %plot the points
     scatter3(a3,t_pp(:,1),t_pp(:,2),t_pp(:,3),50,cc,'fill');
-    grid(a3,'off');
+    grid(a3,'on');
     set(a3,'xticklabel',[],'yticklabel',[],'zticklabel',[]);
-    
-    axis([centroid(1)-.2 centroid(1)+.2...
-      centroid(2)-.2 centroid(2)+.2...
-      centroid(3)-.2 centroid(3)+.2]);
-    %   axis(a3,'equal');
-    
-    if ~isnan(turn_angle(ff))
-      [~,el]=view;
-      view(turn_angle(ff)-90,el)
-      [az,~]=view;
-    else
-      view(az,el)
-    end
-    
-    zlabel(num2str(ff),'fontsize',16,'rotation',0)
-    
-    ff_time=toc;
-    if ff_time < 1/des_frate
-      pause(1/des_frate-ff_time)
-    end
-    drawnow;
+  else
+    set(get(a3,'children'),'visible','off');
   end
-  view(az,el)
+  az=turn_angle(ff)-90;
+  view(az,40);
+  
+  %     axis([centroid(1)-.2 centroid(1)+.2...
+  %       centroid(2)-.2 centroid(2)+.2...
+  %       centroid(3)-.2 centroid(3)+.2]);
+  %     axis(a3,'equal');
+  axis([-.2 .2 -.2 .2 -.15 .15]);
+  
+  zlabel(num2str(ff),'fontsize',16,'rotation',0)
+  
   ff=ff+1;
+  
+  drawnow;
+  ff_time=toc;
+  if ff_time < 1/des_frate
+    pause(1/des_frate-ff_time)
+  end
 end
+
 if ff>end_frame
   ff=ff-1;
   disp('animated whole trial')
