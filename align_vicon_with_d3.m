@@ -1,13 +1,11 @@
 %this function translates and rotates vicon data with d3 data using the 
 %calibration wand
-function object_rot = align_vicon_with_d3(trialcode,xyz,DIAG)
+function object_rot = align_vicon_with_d3(datecode,xyz,DIAG)
+
+trialcode=datestr(datecode,'yyyymmdd');
 
 pn=getpref('vicon_labeler','ratings');
-origin_d3_dir = [pn '..\photron\origin\'];
-
-dots = strfind(trialcode,'.');
-datecode = datevec(trialcode(dots(1)+1:dots(2)-1),...
-  'yyyymmdd');
+origin_d3_dir = [pn '..\d3\Origin\'];
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 
