@@ -397,11 +397,16 @@ end
 d3_path = [d3_path '\'];
 addpath(d3_path);
 
-if ~isfield(assign_labels.d3_analysed,'calibration')
-  dots = strfind(assign_labels.d3_analysed.trialcode,'.');
+dots = strfind(assign_labels.d3_analysed.trialcode,'.');
+datecode = datevec(assign_labels.d3_analysed.trialcode(dots(1)+1:dots(2)-1),...
+  'mmddyyyy');
+year = num2str(datecode(1));
+if str2double(year) < 2010
   datecode = datevec(assign_labels.d3_analysed.trialcode(dots(1)+1:dots(2)-1),...
-    'yyyymmdd');
+  'yyyymmdd');
   year = num2str(datecode(1));
+end
+if ~isfield(assign_labels.d3_analysed,'calibration')
   year_dir = dir([d3_path year '*']);
   year_dir_pname = year_dir.name;
   
@@ -444,7 +449,7 @@ end
 [lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
   [assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}],frame);
 
-object_rot = align_vicon_with_d3(assign_labels.d3_analysed.trialcode,...
+object_rot = align_vicon_with_d3(datecode,...
   assign_labels.d3_analysed.unlabeled_bat{frame},0);
 if ~isempty(object_rot)
   [xy1] = invdlt(A(:,1),[object_rot(:,1) object_rot(:,3) -object_rot(:,2)]);
@@ -453,7 +458,7 @@ end
 
 track_indx=find(track_frames == frame);
 if ~isempty(track_indx)
-  track_rot = align_vicon_with_d3(assign_labels.d3_analysed.trialcode,...
+  track_rot = align_vicon_with_d3(datecode,...
     track(track_indx).point,0);
   track_rot_xy1 = invdlt(A(:,1),[track_rot(:,1) track_rot(:,3) -track_rot(:,2)]);
   track_rot_xy2 = invdlt(A(:,2),[track_rot(:,1) track_rot(:,3) -track_rot(:,2)]);
@@ -469,7 +474,7 @@ if ~isempty(object_rot)
     lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
       length([lab_tracks_in_zoom{lab}.point])/3)';
     
-    pts_rot = align_vicon_with_d3(assign_labels.d3_analysed.trialcode,...
+    pts_rot = align_vicon_with_d3(datecode,...
       lab_points,0);
     pts_rot_xy1{lab} = invdlt(A(:,1),[pts_rot(:,1) pts_rot(:,3) -pts_rot(:,2)]);
     pts_rot_xy2{lab} = invdlt(A(:,2),[pts_rot(:,1) pts_rot(:,3) -pts_rot(:,2)]);
@@ -513,6 +518,7 @@ if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
     end
   end
   imshow(assign_labels.photron.c1_video(:,:,:,ia));
+  set(gca,'position',[0 0 1 1]);
   
   if ~isempty(object_rot)
     hold on;
@@ -565,6 +571,7 @@ if  ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
     end
   end
   imshow(assign_labels.photron.c2_video(:,:,:,ia));
+  set(gca,'position',[0 0 1 1]);
   
   if ~isempty(object_rot)
     hold on;
@@ -631,10 +638,20 @@ global assign_labels
 
 labels_isempty=cellfun(@isempty,assign_labels.labels);
 labels=assign_labels.labels(~labels_isempty);
-labelstrings=cellfun(@(c) ['<html><font color="' conv_cspec_to_cname(c.color) '">' ...
+% labelstrings=cellfun(@(c) ['<html><font color="' conv_cspec_to_cname(c.color) '">' ...
+%   num2str(c.track.points(1).frame) ': ' num2str(c.label) ', len: ' num2str(length(c.track.points))...
+%   '</font></html>'],...
+%   labels,'uniformoutput',0);
+labelstrings=cell(length(labels),1);
+for k=1:length(labels)
+  c=labels{k};
+  if isempty(c.track.points)
+    continue
+  end
+  labelstrings{k}=['<html><font color="' conv_cspec_to_cname(c.color) '">' ...
   num2str(c.track.points(1).frame) ': ' num2str(c.label) ', len: ' num2str(length(c.track.points))...
-  '</font></html>'],...
-  labels,'uniformoutput',0);
+  '</font></html>'];
+end
 set(handles.labels_listbox,'String',labelstrings);
 
 if ~isempty(assign_labels.labels{assign_labels.cur_track_num})
@@ -763,10 +780,18 @@ edited_tracks=cellfun(@(c) {remove_points_from_track(c,track_points)},...
 assign_labels.tracks(track_indx) = edited_tracks;
 
 non_empty_labels=intersect(find(~cellfun(@isempty,assign_labels.labels)),track_indx)';
+remove_labels=[];
 for k=non_empty_labels
   assign_labels.labels{k}.track=...
     remove_points_from_track(assign_labels.labels{k}.track,track_points);
+  if isempty(assign_labels.labels{k}.track.points)
+    remove_labels(end+1)=k;
+  end
 end
+assign_labels.labels(remove_labels)=[];
+assign_labels.tracks(remove_labels)=[];
+assign_labels.cur_track_num=assign_labels.cur_track_num-...
+  sum(remove_labels<assign_labels.cur_track_num);
 
 function track_labeled(selected_label_item,marker_names)
 global assign_labels
