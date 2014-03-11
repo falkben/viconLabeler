@@ -779,7 +779,7 @@ edited_tracks=cellfun(@(c) {remove_points_from_track(c,track_points)},...
   assign_labels.tracks(track_indx));
 assign_labels.tracks(track_indx) = edited_tracks;
 
-non_empty_labels=intersect(find(~cellfun(@isempty,assign_labels.labels)),track_indx)';
+non_empty_labels=intersect(find(~cellfun(@isempty,assign_labels.labels)),track_indx);
 remove_labels=[];
 for k=non_empty_labels
   assign_labels.labels{k}.track=...
