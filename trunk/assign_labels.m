@@ -772,6 +772,12 @@ end
 
 function remove_labeled_points_from_other_tracks(track)
 global assign_labels
+
+if find(strfind(assign_labels.label_items.name,'NN'),1) || ...
+    strcmp(assign_labels.origin,'NN') %we don't remove labeled stuff from a NN
+  return
+end
+
 track_points = get_track_points_frames(track.points);
 
 track_indx = setdiff(1:length(assign_labels.tracks),assign_labels.cur_track_num);
@@ -806,7 +812,7 @@ if LI_indx > 0
       all_ms(k).name ': ' all_ms(k).color '</FONT></HTML>'];
   end
   
-  [m ia] = intersect(names_to_match,marker_names);
+  [m,ia] = intersect(names_to_match,marker_names);
   markers=all_ms(sort(ia));
   
   remove_labeled_points_from_other_tracks(assign_labels.tracks{assign_labels.cur_track_num});
