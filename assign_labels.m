@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 23-Oct-2013 16:26:45
+% Last Modified by GUIDE v2.5 19-Sep-2014 23:48:10
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -249,6 +249,10 @@ set(handles.cam1_edit,'tooltipString','');
 set(handles.cam2_edit,'String','');
 set(handles.cam2_edit,'tooltipString','');
 set(handles.photron_fps_edit,'String','');
+
+set(handles.clip2NCbutton,'enable','on');
+set(handles.NC1align,'enable','on');
+set(handles.NC2align,'enable','on');
 
 set(handles.figure1,'name',['Assign Labels: ' assign_labels.ratings_filename]);
 
@@ -949,7 +953,8 @@ track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 [track_points track_frames] = get_track_points_frames(track);
 
 unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
-plotting_frames = determine_plotting_frames(handles,track_frames,length(unlabeled_bat));
+plotting_frames = determine_plotting_frames(handles,track_frames,...
+  length(unlabeled_bat));
 
 track_color = get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
@@ -1605,4 +1610,87 @@ function animate_all_fps_Callback(hObject, eventdata, handles)
 function animate_all_fps_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
   set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in clip2NCbutton.
+function clip2NCbutton_Callback(hObject, eventdata, handles)
+global assign_labels
+
+base_data_dir=[getpref('vicon_labeler','ratings') '..\analysis-ben\'];
+
+%get matching audio file for trial
+tcode=assign_labels.d3_analysed.trialcode;
+[apath,afname]=determine_audio_fname(tcode,base_data_dir);
+
+afullfname=[apath afname(1:end-4) '_processed.mat'];
+if exist(afullfname,'file')
+  load(afullfname)
+else
+  disp('no matching audio file')
+  return;
+end
+NC=trial_data.net_crossings;
+
+nc1=str2double(get(handles.NC1align,'String'));
+nc2=str2double(get(handles.NC2align,'String'));
+
+f1=NC(1)+nc1;
+f2=NC(2)+nc2;
+
+sf=cellfun(@(c) c.points(1).frame,assign_labels.tracks);
+ef=cellfun(@(c) c.points(end).frame,assign_labels.tracks);
+
+ilong=sf>f2;
+ishort=ef<f1;
+
+assign_labels.tracks(ilong | ishort)=[];
+assign_labels.labels(ilong | ishort)=[];
+update(handles);
+
+
+
+
+function NC1align_Callback(hObject, eventdata, handles)
+% hObject    handle to NC1align (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of NC1align as text
+%        str2double(get(hObject,'String')) returns contents of NC1align as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function NC1align_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to NC1align (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function NC2align_Callback(hObject, eventdata, handles)
+% hObject    handle to NC2align (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of NC2align as text
+%        str2double(get(hObject,'String')) returns contents of NC2align as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function NC2align_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to NC2align (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end
