@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 19-Sep-2014 23:48:10
+% Last Modified by GUIDE v2.5 22-Sep-2014 15:46:35
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -234,6 +234,7 @@ set(handles.labels_listbox,'enable','on');
 set(handles.labels_listbox,'Value',1);
 set(handles.animate_from_beg,'enable','on');
 set(handles.animate_from_cur,'enable','on');
+set(handles.animate_all_fps,'enable','on');
 
 set(handles.photron_toggle,'enable','on');
 set(handles.cam1_edit,'enable','on');
@@ -249,10 +250,6 @@ set(handles.cam1_edit,'tooltipString','');
 set(handles.cam2_edit,'String','');
 set(handles.cam2_edit,'tooltipString','');
 set(handles.photron_fps_edit,'String','');
-
-set(handles.clip2NCbutton,'enable','on');
-set(handles.NC1align,'enable','on');
-set(handles.NC2align,'enable','on');
 
 set(handles.figure1,'name',['Assign Labels: ' assign_labels.ratings_filename]);
 
@@ -777,7 +774,7 @@ end
 function remove_labeled_points_from_other_tracks(track)
 global assign_labels
 
-if find(strfind(assign_labels.label_items.name,'NN'),1) || ...
+if ~isempty(find(strfind(assign_labels.label_items.name,'NN'),1)) || ...
     strcmp(assign_labels.origin,'NN') %we don't remove labeled stuff from a NN
   return
 end
@@ -789,7 +786,7 @@ edited_tracks=cellfun(@(c) {remove_points_from_track(c,track_points)},...
   assign_labels.tracks(track_indx));
 assign_labels.tracks(track_indx) = edited_tracks;
 
-non_empty_labels=intersect(find(~cellfun(@isempty,assign_labels.labels)),track_indx);
+non_empty_labels=intersect(find(~cellfun(@isempty,assign_labels.labels)),track_indx)';
 remove_labels=[];
 for k=non_empty_labels
   assign_labels.labels{k}.track=...
@@ -912,7 +909,7 @@ label_ratings = assign_labels;
 label_ratings.ratings_pathname = pn;
 label_ratings.ratings_filename = fn;
 disp('Saving...');
-save([pn fn],'label_ratings');
+save([pn fn],'label_ratings','-v7');
 disp(['Saved at: ' datestr(now,14)]);
 
 function plotting_frames = determine_plotting_frames(handles,track_frames,trial_length)
@@ -1246,6 +1243,12 @@ if get(handles.advance_checkbox,'value')
 end
 update(handles);
 
+if get(handles.advance_checkbox,'value')
+  if get(handles.auto_animate,'value')
+    animate_zoom(0,handles);
+  end
+end
+
 function label_popup_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
   set(hObject,'BackgroundColor','white');
@@ -1263,6 +1266,11 @@ update(handles);
 
 
 function advance_checkbox_Callback(hObject, eventdata, handles)
+if get(hObject,'value')
+  set(handles.auto_animate,'enable','on');
+else
+  set(handles.auto_animate,'enable','off');
+end
 
 function rebuild_current_track_Callback(hObject, eventdata, handles)
 global assign_labels
@@ -1613,84 +1621,10 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in clip2NCbutton.
-function clip2NCbutton_Callback(hObject, eventdata, handles)
-global assign_labels
-
-base_data_dir=[getpref('vicon_labeler','ratings') '..\analysis-ben\'];
-
-%get matching audio file for trial
-tcode=assign_labels.d3_analysed.trialcode;
-[apath,afname]=determine_audio_fname(tcode,base_data_dir);
-
-afullfname=[apath afname(1:end-4) '_processed.mat'];
-if exist(afullfname,'file')
-  load(afullfname)
-else
-  disp('no matching audio file')
-  return;
-end
-NC=trial_data.net_crossings;
-
-nc1=str2double(get(handles.NC1align,'String'));
-nc2=str2double(get(handles.NC2align,'String'));
-
-f1=NC(1)+nc1;
-f2=NC(2)+nc2;
-
-sf=cellfun(@(c) c.points(1).frame,assign_labels.tracks);
-ef=cellfun(@(c) c.points(end).frame,assign_labels.tracks);
-
-ilong=sf>f2;
-ishort=ef<f1;
-
-assign_labels.tracks(ilong | ishort)=[];
-assign_labels.labels(ilong | ishort)=[];
-update(handles);
-
-
-
-
-function NC1align_Callback(hObject, eventdata, handles)
-% hObject    handle to NC1align (see GCBO)
+% --- Executes on button press in auto_animate.
+function auto_animate_Callback(hObject, eventdata, handles)
+% hObject    handle to auto_animate (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of NC1align as text
-%        str2double(get(hObject,'String')) returns contents of NC1align as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function NC1align_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to NC1align (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function NC2align_Callback(hObject, eventdata, handles)
-% hObject    handle to NC2align (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of NC2align as text
-%        str2double(get(hObject,'String')) returns contents of NC2align as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function NC2align_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to NC2align (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
+% Hint: get(hObject,'Value') returns toggle state of auto_animate
