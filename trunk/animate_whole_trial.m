@@ -19,8 +19,11 @@ end
 end_frame = max(track_end_frames);
 
 all_C=assign_labels.d3_analysed.object(1).video;
-sm_C = sm_centroid(all_C,200,0);
-turn_angle=calc_turn_angle(sm_C,0);
+sm_C = sm_centroid(all_C,100,0);
+if ~isfield(assign_labels,'turn_angle')
+  assign_labels.turn_angle=calc_turn_angle(sm_C,0);
+end
+turn_angle=assign_labels.turn_angle;
 
 f3=figure(3);clf;
 a3=gca;
