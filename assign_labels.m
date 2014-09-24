@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 22-Sep-2014 15:46:35
+% Last Modified by GUIDE v2.5 24-Sep-2014 16:44:19
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -235,6 +235,7 @@ set(handles.labels_listbox,'Value',1);
 set(handles.animate_from_beg,'enable','on');
 set(handles.animate_from_cur,'enable','on');
 set(handles.animate_all_fps,'enable','on');
+set(handles.lock_flight_dir_checkbox,'enable','on');
 
 set(handles.photron_toggle,'enable','on');
 set(handles.cam1_edit,'enable','on');
@@ -262,8 +263,17 @@ unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
 all_points = cell2mat(unlabeled_bat);
 all_points(all_points(:,1)==0,:) = [];
 
+if get(handles.lock_flight_dir_checkbox,'value')
+  if ~isfield(assign_labels,'turn_angle')
+    all_C=assign_labels.d3_analysed.object(1).video;
+    sm_C = sm_centroid(all_C,100,0);
+    assign_labels.turn_angle=calc_turn_angle(sm_C,0);
+  end
+  turn_angle=assign_labels.turn_angle;
+end
+
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
-[track_points track_frames] = get_track_points_frames(track);
+[track_points,track_frames] = get_track_points_frames(track);
 
 if isempty(track_frames)
   plotting_frames=[];
@@ -276,7 +286,7 @@ end
 
 track_color= get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
-[labels labeled_colors]=get_all_labels_colors(assign_labels.labels);
+[labels,labeled_colors]=get_all_labels_colors(assign_labels.labels);
 markers=assign_labels.label_items.markers;
 if ~isempty(assign_labels.labels{assign_labels.cur_track_num})
   label_indx = find(~cellfun(@isempty,strfind({assign_labels.label_items.markers.name},...
@@ -284,7 +294,7 @@ if ~isempty(assign_labels.labels{assign_labels.cur_track_num})
 else
   label_indx = 1;
   if ~get(handles.all_labels_as_options,'value')
-    [lab_tracks_in_zoom lab_clrs_in_zoom lab_name_in_zoom]=get_labels_for_plotting(...
+    [lab_tracks_in_zoom,lab_clrs_in_zoom,lab_name_in_zoom]=get_labels_for_plotting(...
       labels,track_frames);
     marker_names={assign_labels.label_items.markers.name};
     [remaining_markers,ia] = setdiff(marker_names,lab_name_in_zoom);
@@ -298,7 +308,7 @@ set_track_info(handles);
 
 set_label_listbox(handles);
 
-[lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(labels,plotting_frames);
+[lab_tracks_in_zoom,lab_clrs_in_zoom]=get_labels_for_plotting(labels,plotting_frames);
 
 scrn_size=get(0,'ScreenSize');
 
@@ -335,6 +345,7 @@ text(trial_end_loc(1)+.2,trial_end_loc(2),trial_end_loc(3)+.2,...
 view([az,el]); axis equal;
 grid on;
 
+%zoom view
 figure(2);
 set(gcf,'position',[30+.3*scrn_size(3) .5*scrn_size(4)-85 .3*scrn_size(3) .5*scrn_size(4)]);
 if isempty(plotting_frames)
@@ -343,7 +354,12 @@ if isempty(plotting_frames)
   text((a(1)+a(2))/2,(a(3)+a(4))/2,'No track points','fontsize',14);
   grid off;
 else
-  [az,el] = view;
+  if get(handles.lock_flight_dir_checkbox,'value')
+    [~,el] = view;
+    az=mean(turn_angle(track_frames))-90;
+  else
+    [az,el] = view;
+  end
   clf;
   hold on;
   plot3(track_points(:,1),track_points(:,2),track_points(:,3),...
@@ -787,18 +803,20 @@ edited_tracks=cellfun(@(c) {remove_points_from_track(c,track_points)},...
 assign_labels.tracks(track_indx) = edited_tracks;
 
 non_empty_labels=intersect(find(~cellfun(@isempty,assign_labels.labels)),track_indx)';
-remove_labels=[];
-for k=non_empty_labels
-  assign_labels.labels{k}.track=...
-    remove_points_from_track(assign_labels.labels{k}.track,track_points);
-  if isempty(assign_labels.labels{k}.track.points)
-    remove_labels(end+1)=k;
+if ~isempty(non_empty_labels)
+  remove_labels=[];
+  for k=non_empty_labels
+    assign_labels.labels{k}.track=...
+      remove_points_from_track(assign_labels.labels{k}.track,track_points);
+    if isempty(assign_labels.labels{k}.track.points)
+      remove_labels(end+1)=k;
+    end
   end
+  assign_labels.labels(remove_labels)=[];
+  assign_labels.tracks(remove_labels)=[];
+  assign_labels.cur_track_num=assign_labels.cur_track_num-...
+    sum(remove_labels<assign_labels.cur_track_num);
 end
-assign_labels.labels(remove_labels)=[];
-assign_labels.tracks(remove_labels)=[];
-assign_labels.cur_track_num=assign_labels.cur_track_num-...
-  sum(remove_labels<assign_labels.cur_track_num);
 
 function track_labeled(selected_label_item,marker_names)
 global assign_labels
@@ -976,6 +994,8 @@ if saving
   open(aviobj);
 end
 
+des_frate=str2double(get(handles.animate_all_fps,'string'));
+
 h3=figure(3);clf;
 all_points=cell2mat(unlab_near_track);
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
@@ -1019,7 +1039,7 @@ for k=1:length(plotting_frames)
     currFrame = getframe(gca);
     writeVideo(aviobj,currFrame);
   else
-    delay_time=1/24-tt;
+    delay_time=1/des_frate-tt;
     if delay_time > 0
       pause(delay_time);
     end
@@ -1413,6 +1433,10 @@ update(handles);
 function labels_listbox_Callback(hObject, eventdata, handles)
 global assign_labels
 label_num = get(hObject,'Value');
+if isempty(label_num)
+  return
+end
+
 labels_isempty=cellfun(@isempty,assign_labels.labels);
 
 indx=find(cumsum(~labels_isempty)==label_num,1);
@@ -1628,3 +1652,12 @@ function auto_animate_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of auto_animate
+
+
+% --- Executes on button press in lock_flight_dir_checkbox.
+function lock_flight_dir_checkbox_Callback(hObject, eventdata, handles)
+% hObject    handle to lock_flight_dir_checkbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of lock_flight_dir_checkbox
