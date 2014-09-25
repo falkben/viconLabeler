@@ -1342,10 +1342,16 @@ function save_animation_Callback(hObject, eventdata, handles)
 function next_unlabeled_Callback(hObject, eventdata, handles)
 find_next_unlabeled(handles,1);
 update(handles);
+if strcmp(get(handles.auto_animate,'enable'),'on') && get(handles.auto_animate,'value')
+  animate_zoom(0,handles);
+end
 
 function prev_unlabeled_Callback(hObject, eventdata, handles)
 find_next_unlabeled(handles,-1);
 update(handles);
+if strcmp(get(handles.auto_animate,'enable'),'on') && get(handles.auto_animate,'value')
+  animate_zoom(0,handles);
+end
 
 function pts_before_Callback(hObject, eventdata, handles)
 if str2double(get(hObject,'String')) < 0
