@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 24-Sep-2014 16:44:19
+% Last Modified by GUIDE v2.5 30-Sep-2014 17:00:33
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -45,7 +45,7 @@ end
 
 
 % --- Executes just before assign_labels is made visible.
-function assign_labels_OpeningFcn(hObject, eventdata, handles, varargin)
+function assign_labels_OpeningFcn(hObject, ~, handles, varargin)
 global assign_labels
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
@@ -78,7 +78,7 @@ else
   else return;
   end
 end
-[fn pn] = uigetfile('*.mat','Pick file to label',pn);
+[fn, pn] = uigetfile('*.mat','Pick file to label',pn);
 if ~isequal(fn,0)
   setpref('vicon_labeler','ratings',pn);
   assign_labels=[];
@@ -91,14 +91,14 @@ if ~isequal(fn,0)
   assign_labels.d3_analysed = label_ratings.d3_analysed;
   assign_labels.origin = 'rating';
   if ~isfield(label_ratings,'tracks')
-    [assign_labels.tracks assign_labels.labels] = build_tracks_from_ratings(label_ratings.d3_analysed,...
+    [assign_labels.tracks, assign_labels.labels] = build_tracks_from_ratings(label_ratings.d3_analysed,...
       label_ratings.rating);
     load_label_items(handles);
     assign_labels.edited = 1;
     set(handles.frame_sort,'value',1);
-    change_track_num(1);
+    change_track_num(1,handles);
     sort_tracks(handles);
-    change_track_num(1);
+    change_track_num(1,handles);
   else
     assign_labels.tracks = label_ratings.tracks;
     assign_labels.labels = label_ratings.labels;
@@ -127,14 +127,14 @@ if ~isequal(fn,0)
       case 'length'
         set(handles.length_sort,'value',1)
     end
-    change_track_num(assign_labels.cur_track_num);
+    change_track_num(assign_labels.cur_track_num,handles);
   end
   initialize(handles);
   update(handles);
 end
 
 
-function [tracks labels] = build_tracks_from_ratings(d3_analysed,rating)
+function [tracks, labels] = build_tracks_from_ratings(d3_analysed,rating)
 disp('Building tracks... this can take some time');
 tracks = auto_build_tracks(d3_analysed,rating);
 labels = cell(length(tracks),1);
@@ -165,7 +165,7 @@ else
     setpref('vicon_labeler','label_items',pn);
   end
 end
-[fn pn] = uigetfile('*.mat','Pick label items',pn);
+[fn, pn] = uigetfile('*.mat','Pick label items',pn);
 
 if ~isequal(fn,0)
   setpref('vicon_labeler','label_items',pn);
@@ -294,10 +294,10 @@ if ~isempty(assign_labels.labels{assign_labels.cur_track_num})
 else
   label_indx = 1;
   if ~get(handles.all_labels_as_options,'value')
-    [lab_tracks_in_zoom,lab_clrs_in_zoom,lab_name_in_zoom]=get_labels_for_plotting(...
+    [~,~,lab_name_in_zoom]=get_labels_for_plotting(...
       labels,track_frames);
     marker_names={assign_labels.label_items.markers.name};
-    [remaining_markers,ia] = setdiff(marker_names,lab_name_in_zoom);
+    [~,ia] = setdiff(marker_names,lab_name_in_zoom);
     markers = assign_labels.label_items.markers(sort(ia));
   end
 end
@@ -368,7 +368,7 @@ else
     'ok','markersize',3,'markerfacecolor','k');
   for lab=1:length(lab_tracks_in_zoom)
     lab_frames = [lab_tracks_in_zoom{lab}.frame];
-    [c ia]=intersect(lab_frames,plotting_frames);
+    [~, ia]=intersect(lab_frames,plotting_frames);
     lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
       length([lab_tracks_in_zoom{lab}.point])/3)';
     plot3(lab_points(ia,1),lab_points(ia,2),lab_points(ia,3),...
@@ -456,14 +456,14 @@ if ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
 end
 
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
-[track_points track_frames] = get_track_points_frames(track);
+[~, track_frames] = get_track_points_frames(track);
 track_color = get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
 if nargin < 2
   frame = track_frames(1);
 end
 
-[lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
+[lab_tracks_in_zoom, lab_clrs_in_zoom]=get_labels_for_plotting(...
   [assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}],frame);
 
 object_rot = align_vicon_with_d3(datecode,...
@@ -487,7 +487,7 @@ pts_rot_xy2={};
 if ~isempty(object_rot)
   for lab=1:length(lab_tracks_in_zoom)
     lab_frames = [lab_tracks_in_zoom{lab}.frame];
-    [c lab_indx(lab)]=intersect(lab_frames,frame);
+    [~, lab_indx(lab)]=intersect(lab_frames,frame);
     lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
       length([lab_tracks_in_zoom{lab}.point])/3)';
     
@@ -502,7 +502,7 @@ fvideo = assign_labels.d3_analysed.fvideo;
 vicon_frames = length(assign_labels.d3_analysed.unlabeled_bat);
 frame_time = (vicon_frames-frame)/fvideo;
 
-wind_size=150; %used as a window on all sides (actual window is 4*wind_size)
+% wind_size=150; %used as a window on all sides (actual window is 4*wind_size)
 
 %cam1
 if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
@@ -567,7 +567,7 @@ if  ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
     if isempty(c)
       ia=1;
       if exist('animation_frames','var')
-        c2frames = [0:round((animation_frames(end)-frame)/fvideo*photron_fvideo)] ...
+        c2frames = (0:round((animation_frames(end)-frame)/fvideo*photron_fvideo)) ...
           + c2frame;
         assign_labels.photron.c2_video = read(obj_C2,[c2frames(1) c2frames(end)]);
         assign_labels.photron.c2frames = c2frames;
@@ -578,7 +578,7 @@ if  ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
     end
   else
     if exist('animation_frames','var')
-      c2frames = [0:round((animation_frames(end)-frame)/fvideo*photron_fvideo)] ...
+      c2frames = (0:round((animation_frames(end)-frame)/fvideo*photron_fvideo)) ...
         + c2frame;
       assign_labels.photron.c2_video = read(obj_C2,[c2frames(1) c2frames(end)]);
       assign_labels.photron.c2frames = c2frames;
@@ -626,9 +626,9 @@ if ~isempty(assign_labels.tracks{assign_labels.cur_track_num}.points)
     num2str(length(assign_labels.tracks{assign_labels.cur_track_num}.points)));
   
   sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
-  [B,IX] = sort(sort_value);
+  [~,IX] = sort(sort_value);
   
-  [sm_speed dir] = get_track_vel(assign_labels.tracks{assign_labels.cur_track_num}.points);
+  [sm_speed, dir] = get_track_vel(assign_labels.tracks{assign_labels.cur_track_num}.points);
   spd_var = var(sm_speed);
   dir_var = var(dir);
   
@@ -700,7 +700,7 @@ if ~isempty(c_info)
   merged_track_points = reshape([merged_tracks.point],3,length([merged_tracks.point])/3)';
   
   point_diff = merged_track_points - ones(length(merged_track_points),1)*c_info.Position;
-  [M find_indx]=min(distance([0 0 0],point_diff));
+  [~, find_indx]=min(distance([0 0 0],point_diff));
   
   point = merged_track_points(find_indx,:);
   ia=find(ismember(merged_track_points,point,'rows'));
@@ -714,29 +714,42 @@ if ~isempty(c_info)
       t_indx = find(cumsum(track_lengths) - ia(k) >= 0,1);
       track = assign_labels.tracks{t_indx};
       
-      [sm_speed dir] = get_track_vel(track.points);
+      [sm_speed, dir] = get_track_vel(track.points);
       spd_var = var(sm_speed);
       dir_var = var(dir);
       rating(k)=spd_var*dir_var;
     end
-    [M best_rating] = min(rating);
+    [~, best_rating] = min(rating);
     track_indx = find(cumsum(track_lengths) - ia(best_rating) >= 0,1);
   end
   
-  change_track_num(track_indx);
+  change_track_num(track_indx,handles);
   
 end
 
 update(handles);
 
+function update_track_history(handles)
+global assign_labels
 
-function change_track_num(n)
+if isfield(assign_labels,'track_history')
+  assign_labels.track_history(end+1)=assign_labels.cur_track_num;
+  set(handles.backbutton,'enable','on')
+else
+  assign_labels.track_history=assign_labels.cur_track_num;
+end
+set(handles.forwardbutton,'enable','off');
+assign_labels.track_forw_history=[];
+
+
+function change_track_num(n,handles)
 global assign_labels
 if n < 1
   n=1;
 elseif n > length(assign_labels.tracks)
   n=length(assign_labels.tracks);
 end
+update_track_history(handles);
 assign_labels.cur_track_num=n;
 
 
@@ -763,8 +776,8 @@ end
 
 if get(handles.thresh_rank_checkbox,'value')
   sort_value = cellfun(@(c) c.rating.spd_var * c.rating.dir_var,assign_labels.tracks);
-  [B,IX] = sort(sort_value);
-  [B,IX]=sort(IX);
+  [~,IX] = sort(sort_value);
+  [~,IX]=sort(IX);
   rank_percent = IX./length(assign_labels.tracks).*100;
   
   rank_thresh = str2double(get(handles.thresh_rank_edit,'string'));
@@ -779,9 +792,9 @@ if ~isempty(track_indx)
   first_empty_label=find(cellfun(@isempty,labels),1,find_dir);
   if ~isempty(first_empty_label)
     if direction==1
-      change_track_num(cur_track_num + track_indx(first_empty_label));
+      change_track_num(cur_track_num + track_indx(first_empty_label),handles);
     else
-      change_track_num(track_indx(first_empty_label));
+      change_track_num(track_indx(first_empty_label),handles);
     end
   end
 end
@@ -831,7 +844,7 @@ if LI_indx > 0
       all_ms(k).name ': ' all_ms(k).color '</FONT></HTML>'];
   end
   
-  [m,ia] = intersect(names_to_match,marker_names);
+  [~,ia] = intersect(names_to_match,marker_names);
   markers=all_ms(sort(ia));
   
   remove_labeled_points_from_other_tracks(assign_labels.tracks{assign_labels.cur_track_num});
@@ -858,7 +871,7 @@ elseif get(handles.frame_sort,'value')
   sort_value = cellfun(@(c) c.rating.frame,assign_labels.tracks);
 elseif get(handles.cur_rating_sort,'value')
   sort_type = 'cur_rating';
-  [spd dir]=cellfun(@(c) get_track_vel(c.points), assign_labels.tracks,...
+  [spd, dir]=cellfun(@(c) get_track_vel(c.points), assign_labels.tracks,...
     'uniformoutput',0);
   sort_value = cellfun(@var,spd) .* cellfun(@var,dir);
 elseif get(handles.length_sort,'value')
@@ -867,12 +880,15 @@ elseif get(handles.length_sort,'value')
     'uniformoutput',0));
 end
 
-[B,IX] = sort(sort_value);
+[~,IX] = sort(sort_value);
 assign_labels.tracks = assign_labels.tracks(IX);
 assign_labels.labels = assign_labels.labels(IX);
 assign_labels.sorted_by = sort_type;
-change_track_num(find(IX==assign_labels.cur_track_num,1))
-
+change_track_num(find(IX==assign_labels.cur_track_num,1),handles)
+assign_labels.track_history=[];
+set(handles.backbutton,'enable','off')
+assign_labels.track_forw_history=[];
+set(handles.forwardbutton,'enable','off')
 
 function crop_track(handles,crop_side)
 global assign_labels
@@ -897,7 +913,7 @@ if ~isempty(c_info)
   old_track_points = get_track_points_frames(old_track);
   
   point_diff = old_track_points - ones(length(old_track_points),1)*selected_point;
-  [M find_indx]=min(distance([0 0 0],point_diff));
+  [~, find_indx]=min(distance([0 0 0],point_diff));
   
   switch crop_side
     case 'start'
@@ -944,11 +960,11 @@ else
   track_color = label.color;
 end
 
-function [track_points track_frames] = get_track_points_frames(track)
+function [track_points, track_frames] = get_track_points_frames(track)
 track_points = reshape([track.point],3,length([track.point])/3)';
 track_frames = [track.frame];
 
-function [labels labeled_colors]=get_all_labels_colors(all_labels)
+function [labels, labeled_colors]=get_all_labels_colors(all_labels)
 labels = [all_labels{~cellfun(@isempty,all_labels)}];
 if ~isempty(labels)
   labeled_colors = [labels.color];
@@ -965,7 +981,7 @@ jFrame = get(handles.figure1,'JavaFrame');
 jFrame.setMinimized(true);
 
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
-[track_points track_frames] = get_track_points_frames(track);
+[track_points, track_frames] = get_track_points_frames(track);
 
 unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
 plotting_frames = determine_plotting_frames(handles,track_frames,...
@@ -973,7 +989,7 @@ plotting_frames = determine_plotting_frames(handles,track_frames,...
 
 track_color = get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
-[lab_tracks_in_zoom lab_clrs_in_zoom]=get_labels_for_plotting(...
+[lab_tracks_in_zoom, lab_clrs_in_zoom]=get_labels_for_plotting(...
   [assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}],plotting_frames);
 
 unlab_near_track = unlabeled_bat(plotting_frames);
@@ -986,7 +1002,7 @@ if saving
   vid_frate = assign_labels.d3_analysed.fvideo / 20;
   fname = [assign_labels.d3_analysed.trialcode '_track_'...
     num2str(assign_labels.cur_track_num) '.mp4'];
-  [status, result] = dos('echo %USERPROFILE%\Desktop');
+  [~, result] = dos('echo %USERPROFILE%\Desktop');
   pn = result;
   aviobj = VideoWriter([pn(1:end-1) '\' fname],'MPEG-4');
   aviobj.FrameRate = vid_frate;
@@ -1018,7 +1034,7 @@ for k=1:length(plotting_frames)
   
   for lab=1:length(lab_tracks_in_zoom)
     lab_frames = [lab_tracks_in_zoom{lab}.frame];
-    [c ia]=intersect(lab_frames,frame);
+    [~, ia]=intersect(lab_frames,frame);
     lab_points = reshape([lab_tracks_in_zoom{lab}.point],3,...
       length([lab_tracks_in_zoom{lab}.point])/3)';
     plot3(lab_points(ia,1),lab_points(ia,2),lab_points(ia,3),...
@@ -1116,14 +1132,14 @@ c_info = getCursorInfo(dcm_obj);
 if ~isempty(c_info)
   
   unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
-  [frame point] = get_frame_from_point(c_info.Position,unlabeled_bat);
+  [frame, point] = get_frame_from_point(c_info.Position,unlabeled_bat);
   if get(handles.use_all_radio,'value')
     other_points = unlabeled_bat;
   else
     other_points = remove_labeled_points(unlabeled_bat);
   end
   
-  [track endings] = create_track(frame,point,other_points);
+  [track, endings] = create_track(frame,point,other_points);
   rating = rate_point(frame,point,unlabeled_bat);
   assign_labels.cur_track_num = length(assign_labels.tracks)+1;
   assign_labels.tracks{assign_labels.cur_track_num}.points = track;
@@ -1143,7 +1159,7 @@ global assign_labels
 labels = assign_labels.labels(~cellfun(@isempty,assign_labels.labels));
 
 for k=1:length(labels)
-  [track_points track_frames] = get_track_points_frames(labels{k}.track.points);
+  [track_points, track_frames] = get_track_points_frames(labels{k}.track.points);
   for f=1:length(track_frames)
     unlabeled_bat{track_frames(f)}=setdiff(unlabeled_bat{track_frames(f)},track_points(f,:),...
       'rows');
@@ -1152,12 +1168,12 @@ end
 other_points=unlabeled_bat;
 
 
-function delete_current_track()
+function delete_current_track(handles)
 global assign_labels
 assign_labels.tracks(assign_labels.cur_track_num)=[];
 assign_labels.labels(assign_labels.cur_track_num)=[];
 assign_labels.edited = 1;
-change_track_num(assign_labels.cur_track_num-1);
+change_track_num(assign_labels.cur_track_num-1,handles);
 
 
 function set_photron_fps(pathname,filename,handles)
@@ -1227,7 +1243,7 @@ else
 end
 
 function track_num_edit_Callback(hObject, eventdata, handles)
-change_track_num(str2double(get(hObject,'String')));
+change_track_num(str2double(get(hObject,'String')),handles);
 update(handles);
 
 function track_num_edit_CreateFcn(hObject, eventdata, handles)
@@ -1241,11 +1257,11 @@ refocus(handles);
 
 
 function track_num_up_button_Callback(hObject, eventdata, handles)
-change_track_num(str2double(get(handles.track_num_edit,'String'))+1);
+change_track_num(str2double(get(handles.track_num_edit,'String'))+1,handles);
 update(handles);
 
 function track_num_down_button_Callback(hObject, eventdata, handles)
-change_track_num(str2double(get(handles.track_num_edit,'String'))-1);
+change_track_num(str2double(get(handles.track_num_edit,'String'))-1,handles);
 update(handles);
 
 function figure1_CloseRequestFcn(hObject, eventdata, handles)
@@ -1432,7 +1448,7 @@ switch choice
   case 'Cancel'
     return;
 end
-delete_current_track();
+delete_current_track(handles);
 update(handles);
 
 
@@ -1446,7 +1462,7 @@ end
 labels_isempty=cellfun(@isempty,assign_labels.labels);
 
 indx=find(cumsum(~labels_isempty)==label_num,1);
-change_track_num(indx);
+change_track_num(indx,handles);
 update(handles);
 
 function labels_listbox_CreateFcn(hObject, eventdata, handles)
@@ -1644,26 +1660,46 @@ update(handles);
 
 function animate_all_fps_Callback(hObject, eventdata, handles)
 
-% --- Executes during object creation, after setting all properties.
 function animate_all_fps_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
   set(hObject,'BackgroundColor','white');
 end
 
 
-% --- Executes on button press in auto_animate.
 function auto_animate_Callback(hObject, eventdata, handles)
-% hObject    handle to auto_animate (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of auto_animate
 
 
-% --- Executes on button press in lock_flight_dir_checkbox.
 function lock_flight_dir_checkbox_Callback(hObject, eventdata, handles)
-% hObject    handle to lock_flight_dir_checkbox (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of lock_flight_dir_checkbox
+
+function backbutton_Callback(hObject, eventdata, handles)
+global assign_labels
+n=assign_labels.track_history(end);
+if ~isfield(assign_labels,'track_forw_history')
+  assign_labels.track_forw_history=[];
+end
+assign_labels.track_forw_history=[assign_labels.track_forw_history assign_labels.cur_track_num];
+set(handles.forwardbutton,'enable','on')
+
+assign_labels.track_history(end)=[];
+if isempty(assign_labels.track_history)
+  set(hObject,'enable','off');
+end
+
+assign_labels.cur_track_num=n;
+update(handles);
+
+function forwardbutton_Callback(hObject, eventdata, handles)
+global assign_labels
+n=assign_labels.track_forw_history(end);
+
+assign_labels.track_history=[assign_labels.track_history assign_labels.cur_track_num];
+set(handles.backbutton,'enable','on')
+
+assign_labels.track_forw_history(end)=[];
+if isempty(assign_labels.track_forw_history)
+  set(hObject,'enable','off');
+end
+
+assign_labels.cur_track_num=n;
+update(handles);
