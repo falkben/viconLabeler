@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 30-Sep-2014 17:00:33
+% Last Modified by GUIDE v2.5 01-Oct-2014 15:40:19
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -356,7 +356,7 @@ if isempty(plotting_frames)
 else
   if get(handles.lock_flight_dir_checkbox,'value')
     [~,el] = view;
-    az=mean(turn_angle(track_frames))-90;
+    az=turn_angle(track_frames(1))-90;
   else
     [az,el] = view;
   end
@@ -893,8 +893,10 @@ assign_labels.labels = assign_labels.labels(IX);
 assign_labels.sorted_by = sort_type;
 
 assign_labels.cur_track_num=find(IX==assign_labels.cur_track_num,1);
-[~,assign_labels.track_history]=ismember(assign_labels.track_history,IX);
-assign_labels.track_forw_history=ismember(assign_labels.track_forw_history,IX);
+if isfield(assign_labels,'track_history')
+  [~,assign_labels.track_history]=ismember(assign_labels.track_history,IX);
+  assign_labels.track_forw_history=ismember(assign_labels.track_forw_history,IX);
+end
 
 
 function crop_track(handles,crop_side)
