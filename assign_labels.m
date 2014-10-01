@@ -390,6 +390,13 @@ else
   close(intersect([4 5],fig_nums));
 end
 
+if isempty(assign_labels.track_history)
+  set(handles.backbutton,'enable','off');
+end
+if isempty(assign_labels.track_forw_history)
+  set(handles.forwardbutton,'enable','off');
+end
+
 function plot_photron(handles,frame,cam_num,animation_frames)
 global assign_labels
 
@@ -884,11 +891,11 @@ end
 assign_labels.tracks = assign_labels.tracks(IX);
 assign_labels.labels = assign_labels.labels(IX);
 assign_labels.sorted_by = sort_type;
-change_track_num(find(IX==assign_labels.cur_track_num,1),handles)
-assign_labels.track_history=[];
-set(handles.backbutton,'enable','off')
-assign_labels.track_forw_history=[];
-set(handles.forwardbutton,'enable','off')
+
+assign_labels.cur_track_num=find(IX==assign_labels.cur_track_num,1);
+[~,assign_labels.track_history]=ismember(assign_labels.track_history,IX);
+assign_labels.track_forw_history=ismember(assign_labels.track_forw_history,IX);
+
 
 function crop_track(handles,crop_side)
 global assign_labels
@@ -1682,9 +1689,6 @@ assign_labels.track_forw_history=[assign_labels.track_forw_history assign_labels
 set(handles.forwardbutton,'enable','on')
 
 assign_labels.track_history(end)=[];
-if isempty(assign_labels.track_history)
-  set(hObject,'enable','off');
-end
 
 assign_labels.cur_track_num=n;
 update(handles);
@@ -1697,9 +1701,6 @@ assign_labels.track_history=[assign_labels.track_history assign_labels.cur_track
 set(handles.backbutton,'enable','on')
 
 assign_labels.track_forw_history(end)=[];
-if isempty(assign_labels.track_forw_history)
-  set(hObject,'enable','off');
-end
 
 assign_labels.cur_track_num=n;
 update(handles);
