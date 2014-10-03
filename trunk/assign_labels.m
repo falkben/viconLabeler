@@ -1331,7 +1331,7 @@ end
 frame = assign_labels.tracks{assign_labels.cur_track_num}.rating.frame;
 point = assign_labels.tracks{assign_labels.cur_track_num}.rating.point;
 unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
-[track endings] = create_track(frame,point,unlabeled_bat);
+[track,endings] = create_track(frame,point,unlabeled_bat);
 assign_labels.tracks{assign_labels.cur_track_num}.points = track;
 assign_labels.tracks{assign_labels.cur_track_num}.endings = endings;
 assign_labels.labels{assign_labels.cur_track_num}=[];
