@@ -209,6 +209,7 @@ set(handles.frame_sort,'enable','on');
 set(handles.cur_rating_sort,'enable','on');
 set(handles.length_sort,'enable','on');
 set(handles.advance_checkbox,'enable','on');
+set(handles.auto_animate,'enable','on');
 set(handles.edit_start_point,'enable','on');
 set(handles.edit_end_point,'enable','on');
 set(handles.rebuild_current_track,'enable','on');
