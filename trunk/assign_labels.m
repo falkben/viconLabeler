@@ -268,6 +268,7 @@ if get(handles.lock_flight_dir_checkbox,'value')
   if ~isfield(assign_labels,'turn_angle')
     all_C=assign_labels.d3_analysed.object(1).video;
     sm_C = sm_centroid(all_C,100,0);
+    assign_labels.sm_C=sm_C;
     assign_labels.turn_angle=calc_turn_angle(sm_C,0);
   end
   turn_angle=assign_labels.turn_angle;
@@ -663,6 +664,7 @@ global assign_labels
 
 labels_isempty=cellfun(@isempty,assign_labels.labels);
 labels=assign_labels.labels(~labels_isempty);
+ik=find(~labels_isempty);
 % labelstrings=cellfun(@(c) ['<html><font color="' conv_cspec_to_cname(c.color) '">' ...
 %   num2str(c.track.points(1).frame) ': ' num2str(c.label) ', len: ' num2str(length(c.track.points))...
 %   '</font></html>'],...
@@ -674,7 +676,9 @@ for k=1:length(labels)
     continue
   end
   labelstrings{k}=['<html><font color="' conv_cspec_to_cname(c.color) '">' ...
-  num2str(c.track.points(1).frame) ': ' num2str(c.label) ', len: ' num2str(length(c.track.points))...
+  '#' num2str(ik(k)) ': ' num2str(c.label) ...
+  ', frm ' num2str(c.track.points(1).frame) ...
+  ', len ' num2str(length(c.track.points))...
   '</font></html>'];
 end
 set(handles.labels_listbox,'String',labelstrings);
@@ -841,6 +845,29 @@ end
 
 function track_labeled(selected_label_item,marker_names)
 global assign_labels
+
+%checking if side matches labeled side
+LRlabel=0;
+if ~isempty(strfind(marker_names{selected_label_item},'Left'))
+  LRlabel=1;
+elseif ~isempty(strfind(marker_names{selected_label_item},'Right'))
+  LRlabel=-1;
+end
+
+if LRlabel || -LRlabel
+  if ~isfield(assign_labels,'sm_C')
+    all_C=assign_labels.d3_analysed.object(1).video;
+    assign_labels.sm_C = sm_centroid(all_C,100,0);
+  end
+  bat=assign_labels.sm_C;
+  pts=reshape([assign_labels.tracks{assign_labels.cur_track_num}.points.point],...
+    3,[])';
+  frms=[assign_labels.tracks{assign_labels.cur_track_num}.points.frame];
+  side=determine_side(bat,pts,frms,1);
+  if mode(side) ~= LRlabel
+    disp(['track #' num2str(assign_labels.cur_track_num) ': labeled side doesn''t match calc. side']);
+  end
+end
 
 LI_indx = selected_label_item - 1;
 
