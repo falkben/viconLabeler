@@ -96,6 +96,7 @@ if ~isequal(fn,0)
     load_label_items(handles);
     assign_labels.edited = 1;
     set(handles.frame_sort,'value',1);
+    assign_labels.cur_track_num = 1;
     change_track_num(1,handles);
     sort_tracks(handles);
     change_track_num(1,handles);
