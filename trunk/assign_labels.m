@@ -270,9 +270,10 @@ all_points(all_points(:,1)==0,:) = [];
 if get(handles.lock_flight_dir_checkbox,'value')
   if ~isfield(assign_labels,'turn_angle')
     all_C=assign_labels.d3_analysed.object(1).video;
-    sm_C = sm_centroid(all_C,100,0);
+    UB=assign_labels.d3_analysed.unlabeled_bat;
+    sm_C = weighted_smooth_centroid(all_C,100,UB,1,0);
     assign_labels.sm_C=sm_C;
-    assign_labels.turn_angle=calc_turn_angle(sm_C,0);
+    assign_labels.turn_angle=calc_turn_angle(sm_C,60,0);
   end
   turn_angle=assign_labels.turn_angle;
 end
@@ -341,9 +342,11 @@ first_frame_with_points = find(unlabeled_empty,1);
 last_frame_with_points = find(unlabeled_empty,1,'last');
 trial_start_loc = mean(unlabeled_bat{first_frame_with_points},1);
 trial_end_loc = mean(unlabeled_bat{last_frame_with_points},1);
+text(track_points(1,1)+.2,track_points(1,2),track_points(1,3)+.2,...
+  'CUR')
 text(trial_start_loc(1),trial_start_loc(2)-.2,trial_start_loc(3)+.2,...
   'START');
-text(trial_end_loc(1)+.2,trial_end_loc(2),trial_end_loc(3)+.2,...
+text(trial_end_loc(1)+.2,trial_end_loc(2)+.2,trial_end_loc(3)+.2,...
   'END');
 
 % axis vis3d;
@@ -860,7 +863,8 @@ end
 if LRlabel || -LRlabel
   if ~isfield(assign_labels,'sm_C')
     all_C=assign_labels.d3_analysed.object(1).video;
-    assign_labels.sm_C = sm_centroid(all_C,100,0);
+    UB=assign_labels.d3_analysed.unlabeled_bat;
+    assign_labels.sm_C = weighted_smooth_centroid(all_C,100,UB,1,0);
   end
   bat=assign_labels.sm_C;
   pts=reshape([assign_labels.tracks{assign_labels.cur_track_num}.points.point],...

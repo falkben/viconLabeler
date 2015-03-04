@@ -19,9 +19,13 @@ end
 end_frame = max(track_end_frames);
 
 all_C=assign_labels.d3_analysed.object(1).video;
-sm_C = sm_centroid(all_C,100,0);
+if ~isfield(assign_labels,'sm_C')
+  UB=assign_labels.d3_analysed.unlabeled_bat;
+  assign_labels.sm_C = weighted_smooth_centroid(all_C,100,UB,1,0);
+end
+sm_C=assign_labels.sm_C;
 if ~isfield(assign_labels,'turn_angle')
-  assign_labels.turn_angle=calc_turn_angle(sm_C,0);
+  assign_labels.turn_angle=calc_turn_angle(sm_C,60,0);
 end
 turn_angle=assign_labels.turn_angle;
 
@@ -43,7 +47,7 @@ warning('off','MATLAB:hg:patch:RGBColorDataNotSupported');
 ff=start_frame;
 while ff <= end_frame
   tic
-  
+    
   %check pause and/or stop button
   if get(pbstop,'value')
     set(pbstop,'value',0)
@@ -69,6 +73,8 @@ while ff <= end_frame
   end
   
   centroid=sm_C(ff,:);
+    
+  axis([-.2 .2 -.2 .2 -.15 .15]);
   
   %get all the tracks index at this frame
   t_ii=find(ff >= track_start_frames & ff <= track_end_frames);
@@ -96,7 +102,7 @@ while ff <= end_frame
     set(get(a3,'children'),'visible','off');
   end
   az=turn_angle(ff)-90;
-  view(az,40);
+  view(az,60);
   
   %     axis([centroid(1)-.2 centroid(1)+.2...
   %       centroid(2)-.2 centroid(2)+.2...
