@@ -50,8 +50,10 @@ else
   for fr=1:length(frms)
     f=frms(fr);
     
-    side(fr)= sign( (bat(f+1,1)-bat(f,1))*(pts(fr,2)-bat(f,2)) -...
-      (bat(f+1,2)-bat(f,2))*(pts(fr,1)-bat(f,1)) ) ;
+    if f+1 <= length(bat)
+      side(fr)= sign( (bat(f+1,1)-bat(f,1))*(pts(fr,2)-bat(f,2)) -...
+        (bat(f+1,2)-bat(f,2))*(pts(fr,1)-bat(f,1)) ) ;
+    end
   end
 end
 
