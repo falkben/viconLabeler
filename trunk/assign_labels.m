@@ -179,6 +179,7 @@ else
 end
 
 function set_label_popup(markers,handles)
+label_popup_txt=cell(1,length(markers));
 for k=1:length(markers)
   cname = conv_cspec_to_cname(markers(k).color);
   label_popup_txt{k} = ['<HTML><FONT COLOR="' cname '">'...
