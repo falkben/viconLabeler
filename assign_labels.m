@@ -392,9 +392,10 @@ else
   grid on;
 end
 
+[~,dd]=version;
 if get(handles.photron_toggle,'Value')
   plot_photron(handles)
-else
+elseif datenum(dd) < datenum('2014-09-15')
   fig_nums = get(0,'children');
   close(intersect([4 5],fig_nums));
 end
@@ -1019,11 +1020,19 @@ end
 
 function animate_zoom(saving,handles)
 global assign_labels
-
 %minimizing the GUI window during animation to prevent accidental clicking
 %of GUI which then starts to animate the GUI...\
-jFrame = get(handles.figure1,'JavaFrame');
-jFrame.setMinimized(true);
+
+% jFrame = get(handles.figure1,'JavaFrame');
+% jFrame.setMinimized(true);
+oh = findall(handles.figure1);
+for zz=1:length(oh)
+  hp=get(oh(zz));
+  if isfield(hp,'Enable')
+    set(oh(zz),'Enable','off');
+  end
+end
+
 
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 [track_points, track_frames] = get_track_points_frames(track);
@@ -1057,17 +1066,17 @@ end
 
 des_frate=str2double(get(handles.animate_all_fps,'string'));
 
-h3=figure(3);clf;
+figure(3);clf;
 all_points=cell2mat(unlab_near_track);
 plot3(all_points(:,1),all_points(:,2),all_points(:,3),'.k');
 % axis vis3d;
 view([az,el]); axis equal;
 a=axis;
+
 for k=1:length(plotting_frames)
   tic
   frame=plotting_frames(k);
-  
-  figure(h3); clf(h3); hold on;
+  cla; hold on;
   
   track_indx=find(track_frames == frame);
   if ~isempty(track_indx)
@@ -1094,6 +1103,8 @@ for k=1:length(plotting_frames)
   view([az,el]);axis equal;
   axis(a);
   grid on;
+  
+  drawnow;
   
   tt=toc;
   if saving
@@ -1127,8 +1138,13 @@ if get(handles.photron_toggle,'Value')
     %     pause(.02);
   end
 end
-
-jFrame.setMinimized(false);
+% jFrame.setMinimized(false);
+for zz=1:length(oh)
+  hp=get(oh(zz));
+  if isfield(hp,'Enable')
+    set(oh(zz),'Enable','on');
+  end
+end
 
 function close_GUI(hObject)
 global assign_labels
