@@ -3,7 +3,7 @@ function rating = rate_point(frame,point,unlabeled_bat)
 
 track = create_track(frame,point,unlabeled_bat,5);
 track = remove_duplicate_points(track);
-[sm_speed dir] = get_track_vel(track);
+[sm_speed,dir] = get_track_vel(track);
 
 spd_var = var(sm_speed);
 dir_var = var(dir);
