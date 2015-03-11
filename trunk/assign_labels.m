@@ -104,13 +104,18 @@ if ~isequal(fn,0)
     assign_labels.tracks = label_ratings.tracks;
     assign_labels.labels = label_ratings.labels;
     assign_labels.label_items = label_ratings.label_items;
+    
+    if ~isfield(assign_labels.labels,'col')
+      add_RGB2label_items;
+      add_RGB2labels;
+    end
+    
     if isfield(label_ratings,'cur_track_num')
       assign_labels.cur_track_num = label_ratings.cur_track_num;
     else
       assign_labels.cur_track_num = 1;
     end
-    markers = label_ratings.label_items.markers;
-    set_label_popup(markers,handles);
+    set_label_popup(assign_labels.label_items.markers,handles);
     if isfield(label_ratings,'sorted_by')
       assign_labels.sorted_by = label_ratings.sorted_by;
     else
@@ -139,6 +144,26 @@ function [tracks, labels] = build_tracks_from_ratings(d3_analysed,rating)
 disp('Building tracks... this can take some time');
 tracks = auto_build_tracks(d3_analysed,rating);
 labels = cell(length(tracks),1);
+
+function add_RGB2label_items
+global assign_labels
+assign_labels.label_items.markers(1).col=[1 0 0];
+assign_labels.label_items.markers(2).col=[0.6350    0.0780    0.1840];
+assign_labels.label_items.markers(3).col=[0 1 0];
+assign_labels.label_items.markers(4).col=[0.4660    0.6740    0.1880];
+assign_labels.label_items.markers(5).col=[0 0 1];
+assign_labels.label_items.markers(6).col=[   0    0.4470    0.7410];
+assign_labels.label_items.markers(7).col=[1 0 1];
+assign_labels.label_items.markers(8).col=[1 1 0];
+
+function add_RGB2labels
+global assign_labels
+
+markers=assign_labels.label_items.markers;
+for k=find(~cellfun(@isempty,assign_labels.labels))'
+  assign_labels.labels{k}.col=...
+    markers(strcmp(assign_labels.labels{k}.label,{markers.name})).col;
+end
 
 function load_label_items(handles)
 global assign_labels
@@ -181,10 +206,9 @@ end
 function set_label_popup(markers,handles)
 label_popup_txt=cell(1,length(markers));
 for k=1:length(markers)
-  cname = conv_cspec_to_cname(markers(k).color);
+  cname = conv_cspec_to_cname(markers(k).col);
   label_popup_txt{k} = ['<HTML><FONT COLOR="' cname '">'...
-    markers(k).name ': ' markers(k).color ...
-    '</FONT></HTML>'];
+    markers(k).name '</FONT></HTML>'];
   %   label_popup_txt{k}=[markers(k).name ': ' markers(k).color];
 end
 set(handles.label_popup,'string',[{''} label_popup_txt]);
@@ -334,7 +358,7 @@ if ~isempty(labels) %plotting all the labeled tracks
     LT_points = reshape([labels(LT).track.points.point],3,...
       length([labels(LT).track.points.point])/3)';
     plot3(LT_points(:,1),LT_points(:,2),LT_points(:,3),...
-      '-o','color',labeled_colors(LT),'markersize',7);
+      '-o','color',labeled_colors(LT,:),'markersize',7);
   end
 end
 
@@ -683,7 +707,7 @@ for k=1:length(labels)
   if isempty(c.track.points)
     continue
   end
-  labelstrings{k}=['<html><font color="' conv_cspec_to_cname(c.color) '">' ...
+  labelstrings{k}=['<html><font color="' conv_cspec_to_cname(c.col) '">' ...
   '#' num2str(ik(k)) ': ' num2str(c.label) ...
   ', frm ' num2str(c.track.points(1).frame) ...
   ', len ' num2str(length(c.track.points))...
@@ -884,8 +908,8 @@ if LI_indx > 0
   all_ms=assign_labels.label_items.markers;
   
   for k=1:length(all_ms)
-    names_to_match{k}=['<HTML><FONT COLOR="' conv_cspec_to_cname(all_ms(k).color) '">'...
-      all_ms(k).name ': ' all_ms(k).color '</FONT></HTML>'];
+    names_to_match{k}=['<HTML><FONT COLOR="' conv_cspec_to_cname(all_ms(k).col) '">'...
+      all_ms(k).name '</FONT></HTML>'];
   end
   
   [~,ia] = intersect(names_to_match,marker_names);
@@ -895,6 +919,8 @@ if LI_indx > 0
   
   assign_labels.labels{assign_labels.cur_track_num}.color = ...
     markers(LI_indx).color;
+  assign_labels.labels{assign_labels.cur_track_num}.col = ...
+    markers(LI_indx).col;
   assign_labels.labels{assign_labels.cur_track_num}.label = ...
     markers(LI_indx).name;
   assign_labels.labels{assign_labels.cur_track_num}.track = ...
@@ -1003,7 +1029,7 @@ function track_color = get_track_color(label)
 if isempty(label)
   track_color = [.5 .5 .5];
 else
-  track_color = label.color;
+  track_color = label.col;
 end
 
 function [track_points, track_frames] = get_track_points_frames(track)
@@ -1013,7 +1039,7 @@ track_frames = [track.frame];
 function [labels, labeled_colors]=get_all_labels_colors(all_labels)
 labels = [all_labels{~cellfun(@isempty,all_labels)}];
 if ~isempty(labels)
-  labeled_colors = [labels.color];
+  labeled_colors = reshape([labels.col],3,[])';
 else
   labeled_colors = [];
 end

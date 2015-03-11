@@ -90,7 +90,7 @@ while ff <= end_frame
       %get the labels of all those points
       lab=labels{t_ii(tt)};
       if ~isempty(lab)
-        cc(tt,:) = bitget(find('krgybmcw'==lab.color)-1,1:3);
+        cc(tt,:) = lab.col;%bitget(find('krgybmcw'==lab.color)-1,1:3);
       end
     end
     

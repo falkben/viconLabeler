@@ -293,6 +293,7 @@ label_items = [];
 label_items.name = '';
 label_items.markers(1).name = '';
 label_items.markers(1).color = 'b';
+label_items.markers(1).col = [0 0 1];
 initialize(handles);
 update(handles);
 
