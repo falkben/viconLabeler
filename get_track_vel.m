@@ -1,11 +1,9 @@
 %in meters / frame
 function [sm_speed, dir] = get_track_vel(track)
 if length(track) >= 3
-  points = reshape([track(:).point],3,...
-    length([track(:).point])/3)';
-  frames = [track.frame]';
-  point_diff = diff(points);
-  speed = distance([0 0 0],point_diff) ./ abs(diff(frames));
+  track_points=reshape([track(:).point],3,length([track(:).point])/3)';
+  point_diff = diff(track_points);
+  speed = distance([0 0 0],point_diff);
   sm_speed = smooth(speed);
   
 %   THETA = cart2pol(point_diff(:,1),point_diff(:,2));
