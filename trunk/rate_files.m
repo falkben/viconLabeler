@@ -18,7 +18,7 @@ end
 files=dir([pn '\*.mat']);
 fnames={files.name};
 
-rated_files = dir([pn '\..\vicon_labeling_from_automated\*.mat']);
+rated_files = dir([pn '\..\vicon_label_ratings_from_automated\*.mat']);
 rated_fnames = {rated_files.name}';
 
 fnames = setdiff(fnames,rated_fnames);

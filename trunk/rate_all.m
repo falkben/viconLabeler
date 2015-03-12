@@ -17,3 +17,4 @@ for k=1:length(all_points_no_zero)
   reverseStr = repmat(sprintf('\b'), 1, length(msg));
 end
 
+fprintf(char(10));
