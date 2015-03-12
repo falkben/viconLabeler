@@ -22,7 +22,7 @@ function varargout = assign_labels(varargin)
 
 % Edit the above text to modify the response to help assign_labels
 
-% Last Modified by GUIDE v2.5 01-Oct-2014 15:40:19
+% Last Modified by GUIDE v2.5 11-Mar-2015 19:20:05
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -170,13 +170,13 @@ global assign_labels
 
 if isfield(assign_labels,'label_items')
   choice = questdlg(['Label items found/n'...
-    'Loading a new set of label items will discard previous track labeling. Continue?'], ...
+    'Loading a new set of label items can cause problem with previous track labeling. Continue?'], ...
     'Load label items?', ...
     'Yes','No','No');
   switch choice
     case 'Yes'
       assign_labels = rmfield(assign_labels,'label_items');
-      assign_labels.labels = cell(length(assign_labels.tracks),1);
+%       assign_labels.labels = cell(length(assign_labels.tracks),1);
     case 'No'
       return;
   end
@@ -244,6 +244,7 @@ set(handles.rebuild_current_track,'enable','on');
 set(handles.rebuild_all_tracks,'enable','on');
 set(handles.animate_button,'enable','on');
 set(handles.save_animation,'enable','on');
+set(handles.lim_axis_checkbox,'enable','on');
 set(handles.next_unlabeled,'enable','on');
 set(handles.pts_before,'enable','on');
 set(handles.pts_after,'enable','on');
@@ -1060,6 +1061,8 @@ for zz=1:length(oh)
 end
 
 
+axis_limit=get(handles.lim_axis_checkbox,'Value');
+
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 [track_points, track_frames] = get_track_points_frames(track);
 
@@ -1127,7 +1130,20 @@ for k=1:length(plotting_frames)
     'END');
   text(a(1),a(3),num2str(frame));
   view([az,el]);axis equal;
-  axis(a);
+  if axis_limit
+%     if ~isempty(track_indx)
+%       x=track_points(track_indx,1);
+%       y=track_points(track_indx,2);
+%       z=track_points(track_indx,3);
+%     else
+      x=assign_labels.sm_C(frame,1);
+      y=assign_labels.sm_C(frame,2);
+      z=assign_labels.sm_C(frame,3);
+%     end
+    axis([x-.25 x+.25 y-.25 y+.25 z-.2 z+.2]);
+  else
+    axis(a);
+  end
   grid on;
   
   drawnow;
@@ -1164,6 +1180,7 @@ if get(handles.photron_toggle,'Value')
     %     pause(.02);
   end
 end
+
 % jFrame.setMinimized(false);
 for zz=1:length(oh)
   hp=get(oh(zz));
@@ -1784,3 +1801,12 @@ assign_labels.track_forw_history(end)=[];
 
 assign_labels.cur_track_num=n;
 update(handles);
+
+
+% --- Executes on button press in lim_axis_checkbox.
+function lim_axis_checkbox_Callback(hObject, eventdata, handles)
+% hObject    handle to lim_axis_checkbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of lim_axis_checkbox
