@@ -11,7 +11,16 @@ end
 % [b ranking_spd]=sort([rating.spd_var]);
 % [bb ranking_dir]=sort([rating.dir_var]);
 
-[bbb ranking_spd_dir]=sort([rating.spd_var].*[rating.dir_var]);
+%removes tracks which had no spd from consideration
+Dsum=nan(size(rating));
+for k=1:length(rating)
+  Dsum(k)=sum(distance(rating(k).track(1).point,reshape([rating(k).track.point],3,[])'));
+end
+for k=find(Dsum<.001)
+  rating(k).spd_var=nan;
+end
+
+[~,ranking_spd_dir]=sort([rating.spd_var].*[rating.dir_var]);
 
 sorted_rating=rating(ranking_spd_dir);
 sorted_points=reshape([sorted_rating.point],3,length([sorted_rating.point])/3)';
@@ -22,20 +31,20 @@ points=sorted_points;
 unlabeled_bat = d3_analysed.unlabeled_bat;
 while length(points) >= .1*length(sorted_points)
   point=points(1,:);
-  [b rindx] = intersect(sorted_points,point,'rows');
+  [~,rindx] = intersect(sorted_points,point,'rows');
   frame = sorted_rating(rindx).frame;
 %   r_track_points = reshape([sorted_rating(rindx).track.point],3,...
 %     length([sorted_rating(rindx).track.point])/3)';
 %   if points_in_unlabeled(unlabeled_bat,r_track_points,...
 %       [sorted_rating(rindx).track.frame])
-  [track endings] = create_track(frame,point,unlabeled_bat);
+  [track,endings] = create_track(frame,point,unlabeled_bat);
   
   tracks{k}.points = track;
   tracks{k}.endings = endings;
   tracks{k}.rating = sorted_rating(rindx);
   
   track_points = reshape([tracks{k}.points.point],3,length([tracks{k}.points.point])/3)';
-  [r i]=setxor(points,track_points,'rows');
+  [~,i]=setxor(points,track_points,'rows');
 %     track_frames = [tracks{k}.frame];
   points = points(sort(i),:);
   k=k+1;
