@@ -1188,6 +1188,7 @@ for zz=1:length(oh)
     set(oh(zz),'Enable','on');
   end
 end
+figure(handles.figure1)
 
 function close_GUI(hObject)
 global assign_labels
@@ -1774,7 +1775,9 @@ function auto_animate_Callback(hObject, eventdata, handles)
 
 
 function lock_flight_dir_checkbox_Callback(hObject, eventdata, handles)
-
+if get(hObject,'value')
+  update(handles)
+end
 
 function backbutton_Callback(hObject, eventdata, handles)
 global assign_labels
