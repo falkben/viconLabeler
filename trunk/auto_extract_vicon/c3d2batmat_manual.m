@@ -36,7 +36,7 @@ disp(['Num unique points: ' num2str(length(unique(all_bat,'rows')))]);
 
 
 function new_UB = crop_trial(UB,frame,autosave)
-thresh_distance=.35;
+thresh_distance=.4;
 
 UB_all = cell2mat(UB);
 frames=1:length(UB);
@@ -60,13 +60,16 @@ while go_on
     set(dcm_obj,'DisplayStyle','datatip',...
     'SnapToDataVertex','off','Enable','on')
   end
-  str = input('Select pt., then press enter','s');
+  
+  str = input('Select pt., then press enter, or Q to quit','s');
   c_info = getCursorInfo(dcm_obj);
-  delete(findall(gcf,'Type','hggroup'));
-  if ~isempty(c_info)
+  if isempty(str) && ~isempty(c_info)
+    delete(findall(gcf,'Type','hggroup'));
     selected_point = c_info.Position;
     frame=get_frame_from_point(selected_point,UB);
-  else
+  elseif strcmp(str,'q') || strcmp(str,'Q')
+    break
+  elseif isempty(c_info)
     prompt = 'Finished? Y/N [Y]: ';
     str = input(prompt,'s');
     if isempty(str)
