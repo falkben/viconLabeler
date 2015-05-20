@@ -227,8 +227,6 @@ set(handles.track_num_down_button,'enable','on');
 set(handles.track_num_up_button,'enable','on');
 set(handles.track_num_edit,'enable','on');
 set(handles.refocus_button,'enable','on');
-set(handles.full_trial_radio,'enable','on');
-set(handles.zoomed_radio,'enable','on');
 set(handles.label_popup,'enable','on');
 set(handles.orig_rating_sort,'enable','on');
 set(handles.frame_sort,'enable','on');
@@ -723,20 +721,34 @@ else
   set(handles.labels_listbox,'value',[],'max',2);
 end
 
+function c_info=get_point_from_fig(handles,msg)
+c_info=[];
+dcm_obj={};
+for f=1:2
+  figure(f);
+  dcm_obj{f} = datacursormode(gcf);
+  set(dcm_obj{f},'DisplayStyle','datatip',...
+    'SnapToDataVertex','off','Enable','on')
+end
+disp(msg);
+pause
+
+c_info_f={};
+for f=1:2
+  figure(f); rotate3d on;
+  c_info_f{f} = getCursorInfo(dcm_obj{f});
+end
+
+indx=find(~cellfun('isempty',c_info_f),1);
+if ~isempty(indx)
+  c_info=c_info_f{indx};
+end
+
+
 function refocus(handles)
 global assign_labels
-if get(handles.full_trial_radio,'value')
-  figure(1);
-else
-  figure(2);
-end
-dcm_obj = datacursormode(gcf);
-set(dcm_obj,'DisplayStyle','datatip',...
-  'SnapToDataVertex','off','Enable','on')
-disp('Select point to zoom on and label, then press enter');
-pause
-rotate3d on;
-c_info = getCursorInfo(dcm_obj);
+c_info=get_point_from_fig(handles,...
+  'Select point to zoom on and label, then press enter');
 
 if ~isempty(c_info)
   
@@ -965,18 +977,8 @@ end
 
 function crop_track(handles,crop_side)
 global assign_labels
-if get(handles.full_trial_radio,'value')
-  figure(1);
-else
-  figure(2);
-end
-dcm_obj = datacursormode(gcf);
-set(dcm_obj,'DisplayStyle','datatip',...
-  'SnapToDataVertex','off','Enable','on')
-disp('Select point to crop to, then press enter');
-pause
-rotate3d 'on';
-c_info = getCursorInfo(dcm_obj);
+c_info=get_point_from_fig(handles,...
+  'Select point to crop to, then press enter');
 
 if ~isempty(c_info)
   
@@ -1221,18 +1223,8 @@ end
 
 function create_new_track(handles)
 global assign_labels
-if get(handles.full_trial_radio,'value')
-  figure(1);
-else
-  figure(2);
-end
-dcm_obj = datacursormode(gcf);
-set(dcm_obj,'DisplayStyle','datatip',...
-  'SnapToDataVertex','off','Enable','on')
-disp('Select point to start new track from, then press enter');
-pause
-rotate3d 'on';
-c_info = getCursorInfo(dcm_obj);
+c_info=get_point_from_fig(handles,...
+  'Select point to start new track from, then press enter');
 
 if ~isempty(c_info)
   
