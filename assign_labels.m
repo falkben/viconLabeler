@@ -488,13 +488,6 @@ if isempty(c2_fname) && isempty(c1_fname)
   return;
 end
 
-if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
-  obj_C1 = VideoReader(c1_fname);
-end
-if ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
-  obj_C2 = VideoReader(c2_fname);
-end
-
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 [~, track_frames] = get_track_points_frames(track);
 track_color = get_track_color(assign_labels.labels{assign_labels.cur_track_num});
@@ -545,36 +538,23 @@ frame_time = (vicon_frames-frame)/fvideo;
 % wind_size=150; %used as a window on all sides (actual window is 4*wind_size)
 
 %cam1
+if ~isfield(assign_labels,'obj_C1') && ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
+  assign_labels.obj_C1 = VideoReader(c1_fname);
+end
 if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
-  figure(4);
-  c1frame = obj_C1.NumberOfFrames - round(frame_time*photron_fvideo);
-  ia = 1;
-  if isfield(assign_labels,'photron') && isfield(assign_labels.photron,'c1frames')
-    [c,ia]=intersect(assign_labels.photron.c1frames,c1frame);
-    if isempty(c)
-      ia=1;
-      if exist('animation_frames','var')
-        c1frames = [0:round((animation_frames(end)-frame)/fvideo*photron_fvideo)] ...
-          + c1frame;
-        assign_labels.photron.c1_video = read(obj_C1,[c1frames(1) c1frames(end)]);
-        assign_labels.photron.c1frames = c1frames;
-      else
-        assign_labels.photron.c1_video = read(obj_C1,c1frame);
-        assign_labels.photron.c1frames = c1frame;
-      end
+  figure(4); set(gcf,'name','Cam 1');
+  
+  c1frame = round(frame_time*photron_fvideo);
+  c=intersect(assign_labels.photron.c1frames,c1frame);
+  if isempty(c)
+    prev_frame = assign_labels.obj_C1.CurrentTime*assign_labels.obj_C1.FrameRate;
+    if prev_frame ~= c1frame-1
+      assign_labels.obj_C1.CurrentTime=round(frame_time*photron_fvideo-1)/assign_labels.obj_C1.FrameRate;
     end
-  else
-    if exist('animation_frames','var')
-      c1frames = [0:round((animation_frames(end)-frame)/fvideo*photron_fvideo)] ...
-        + c1frame;
-      assign_labels.photron.c1_video = read(obj_C1,[c1frames(1) c1frames(end)]);
-      assign_labels.photron.c1frames = c1frames;
-    else
-      assign_labels.photron.c1_video = read(obj_C1,c1frame);
-      assign_labels.photron.c1frames = c1frame;
-    end
+    assign_labels.photron.c1_video = readFrame(assign_labels.obj_C1);
+    assign_labels.photron.c1frames = c1frame;
   end
-  imshow(assign_labels.photron.c1_video(:,:,:,ia));
+  imshow(assign_labels.photron.c1_video(:,:,:,1));
   set(gca,'position',[0 0 1 1]);
   
   if ~isempty(object_rot)
@@ -594,13 +574,16 @@ if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
     %     axis([min(xy1(:,1))-wind_size max(xy1(:,1))+wind_size...
     %       min(xy1(:,2))-wind_size max(xy1(:,2))+wind_size]);
   end
-  title('Cam 1');
 end
 
 %cam2
+if ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
+  obj_C2 = VideoReader(c2_fname);
+end
 if  ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
   figure(5);
-  c2frame = obj_C2.NumberOfFrames - round(frame_time*photron_fvideo);
+  set(gcf,'name','Cam 2');
+  c2frame = obj_C2.CurrentTime + round(frame_time*photron_fvideo);
   ia = 1;
   if isfield(assign_labels,'photron') && isfield(assign_labels.photron,'c2frames')
     [c,ia]=intersect(assign_labels.photron.c2frames,c2frame);
@@ -647,7 +630,6 @@ if  ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
     %     axis([min(xy2(:,1))-wind_size max(xy2(:,1))+wind_size...
     %       min(xy2(:,2))-wind_size max(xy2(:,2))+wind_size]);
   end
-  title('Cam 2');
 end
 
 
@@ -1168,8 +1150,9 @@ if saving
   %encode the file?
 end
 
-%cam 1
+%playing raw videos
 if get(handles.photron_toggle,'Value')
+  %cam 1
   for k=1:length(plotting_frames)
     frame=plotting_frames(k);
     plot_photron(handles,frame,1,plotting_frames);
@@ -1584,6 +1567,10 @@ function photron_toggle_Callback(hObject, eventdata, handles)
 % hObject    handle to photron_toggle (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+global assign_labels
+if get(hObject,'Value') == 0 && isfield(assign_labels,'obj_C2')
+  assign_labels = rmfield(assign_labels,{'obj_C1','obj_C2','photron'});
+end
 update(handles);
 % Hint: get(hObject,'Value') returns toggle state of photron_toggle
 
@@ -1692,25 +1679,48 @@ global assign_labels
 dots = strfind(assign_labels.d3_analysed.trialcode,'.');
 bat = assign_labels.d3_analysed.trialcode(1:dots(1)-1);
 trialnum = assign_labels.d3_analysed.trialcode(dots(end)+1:end);
+
+dots = strfind(assign_labels.d3_analysed.trialcode,'.');
 datecode = datevec(assign_labels.d3_analysed.trialcode(dots(1)+1:dots(2)-1),...
+  'mmddyyyy');
+year = num2str(datecode(1));
+if str2double(year) < 2010
+  datecode = datevec(assign_labels.d3_analysed.trialcode(dots(1)+1:dots(2)-1),...
   'yyyymmdd');
+  year = num2str(datecode(1));
+end
+
 cam1_fname = [datestr(datecode,'yyyy.mm.dd') '.cam1.' bat '*C001S00' trialnum '*.avi'];
 cam2_fname = [datestr(datecode,'yyyy.mm.dd') '.cam2.' bat '*C001S00' trialnum '*.avi'];
 
 vicon_data_path = getpref('vicon_labeler','ratings');
-c1file=dir([vicon_data_path '..\photron\' cam1_fname]);
-c2file=dir([vicon_data_path '..\photron\' cam2_fname]);
+
+campath=[vicon_data_path '..\photron\'];
+
+c1file=dir([campath cam1_fname]);
+if isempty(c1file)
+  cam1_fname = [datestr(datecode,'yyyy.mm.dd') '.cam1.*C001S00' trialnum '*.avi'];
+  campath=[vicon_data_path '..\photron\' bat '\' ];
+  c1file=dir([campath cam1_fname]);
+end
+
+c2file=dir([campath cam2_fname]);
+if isempty(c2file)
+  cam2_fname = [datestr(datecode,'yyyy.mm.dd') '.cam2.*C001S00' trialnum '*.avi'];
+  campath=[vicon_data_path '..\photron\' bat '\' ];
+  c2file=dir([campath cam2_fname]);
+end
 
 if ~isempty(c1file)
-  set(handles.cam1_edit,'string',[vicon_data_path '..\photron\' c1file.name]);
-  set(handles.cam1_edit,'tooltipString',[vicon_data_path '..\photron\' c1file.name]);
-  set_photron_fps([vicon_data_path '..\photron\'],c1file.name,handles);
+  set(handles.cam1_edit,'string',[campath c1file.name]);
+  set(handles.cam1_edit,'tooltipString',[campath c1file.name]);
+  set_photron_fps(campath,c1file.name,handles);
 end
 
 if ~isempty(c2file)
-  set(handles.cam2_edit,'string',[vicon_data_path '..\photron\' c2file.name]);
-  set(handles.cam2_edit,'tooltipString',[vicon_data_path '..\photron\' c2file.name]);
-  set_photron_fps([vicon_data_path '..\photron\'],c2file.name,handles);
+  set(handles.cam2_edit,'string',[campath c2file.name]);
+  set(handles.cam2_edit,'tooltipString',[campath c2file.name]);
+  set_photron_fps(campath,c2file.name,handles);
 end
 
 function animate_from_beg_Callback(hObject, eventdata, handles)
