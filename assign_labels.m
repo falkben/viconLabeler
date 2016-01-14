@@ -430,7 +430,7 @@ if isempty(assign_labels.track_forw_history)
   set(handles.forwardbutton,'enable','off');
 end
 
-function plot_photron(handles,frame,cam_num,animation_frames)
+function plot_photron(handles,frame,cam_num,not_empty_labels)
 global assign_labels
 
 photron_fvideo_text = get(handles.photron_fps_edit,'string');
@@ -494,10 +494,11 @@ track_color = get_track_color(assign_labels.labels{assign_labels.cur_track_num})
 
 if nargin < 2
   frame = track_frames(1);
+  not_empty_labels=[assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}];
 end
 
 [lab_tracks_in_zoom, lab_clrs_in_zoom]=get_labels_for_plotting(...
-  [assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}],frame);
+  not_empty_labels,frame);
 
 object_rot = align_vicon_with_d3(datecode,...
   assign_labels.d3_analysed.unlabeled_bat{frame},0);
@@ -545,16 +546,12 @@ if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
   figure(4); set(gcf,'name','Cam 1');
   
   c1frame = round(frame_time*photron_fvideo);
-  c=intersect(assign_labels.photron.c1frames,c1frame);
-  if isempty(c)
-    prev_frame = assign_labels.obj_C1.CurrentTime*assign_labels.obj_C1.FrameRate;
-    if prev_frame ~= c1frame-1
-      assign_labels.obj_C1.CurrentTime=round(frame_time*photron_fvideo-1)/assign_labels.obj_C1.FrameRate;
-    end
-    assign_labels.photron.c1_video = readFrame(assign_labels.obj_C1);
+  if ~isfield(assign_labels,'photron') || ...
+     isempty(intersect(assign_labels.photron.c1frames,c1frame))
+    assign_labels.photron.c1_video = read(assign_labels.obj_C1,c1frame);
     assign_labels.photron.c1frames = c1frame;
   end
-  imshow(assign_labels.photron.c1_video(:,:,:,1));
+  imshow(assign_labels.photron.c1_video);
   set(gca,'position',[0 0 1 1]);
   
   if ~isempty(object_rot)
@@ -574,43 +571,23 @@ if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
     %     axis([min(xy1(:,1))-wind_size max(xy1(:,1))+wind_size...
     %       min(xy1(:,2))-wind_size max(xy1(:,2))+wind_size]);
   end
+  drawnow;
 end
 
 %cam2
-if ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
-  obj_C2 = VideoReader(c2_fname);
+if ~isfield(assign_labels,'obj_C2') && ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
+  assign_labels.obj_C2 = VideoReader(c2_fname);
 end
-if  ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
-  figure(5);
-  set(gcf,'name','Cam 2');
-  c2frame = obj_C2.CurrentTime + round(frame_time*photron_fvideo);
-  ia = 1;
-  if isfield(assign_labels,'photron') && isfield(assign_labels.photron,'c2frames')
-    [c,ia]=intersect(assign_labels.photron.c2frames,c2frame);
-    if isempty(c)
-      ia=1;
-      if exist('animation_frames','var')
-        c2frames = (0:round((animation_frames(end)-frame)/fvideo*photron_fvideo)) ...
-          + c2frame;
-        assign_labels.photron.c2_video = read(obj_C2,[c2frames(1) c2frames(end)]);
-        assign_labels.photron.c2frames = c2frames;
-      else
-        assign_labels.photron.c2_video = read(obj_C2,c2frame);
-        assign_labels.photron.c2frames = c2frame;
-      end
-    end
-  else
-    if exist('animation_frames','var')
-      c2frames = (0:round((animation_frames(end)-frame)/fvideo*photron_fvideo)) ...
-        + c2frame;
-      assign_labels.photron.c2_video = read(obj_C2,[c2frames(1) c2frames(end)]);
-      assign_labels.photron.c2frames = c2frames;
-    else
-      assign_labels.photron.c2_video = read(obj_C2,c2frame);
-      assign_labels.photron.c2frames = c2frame;
-    end
+if ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
+  figure(5); set(gcf,'name','Cam 2');
+  
+  c2frame = round(frame_time*photron_fvideo);
+  if ~isfield(assign_labels,'photron') || ~isfield(assign_labels.photron,'c2frames') ||...
+     isempty(intersect(assign_labels.photron.c2frames,c2frame))
+    assign_labels.photron.c2_video = read(assign_labels.obj_C2,c2frame);
+    assign_labels.photron.c2frames = c2frame;
   end
-  imshow(assign_labels.photron.c2_video(:,:,:,ia));
+  imshow(assign_labels.photron.c2_video);
   set(gca,'position',[0 0 1 1]);
   
   if ~isempty(object_rot)
@@ -627,11 +604,11 @@ if  ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
         '-o','color',lab_clrs_in_zoom{lab},'markersize',7);
     end
     hold off;
-    %     axis([min(xy2(:,1))-wind_size max(xy2(:,1))+wind_size...
-    %       min(xy2(:,2))-wind_size max(xy2(:,2))+wind_size]);
+    %     axis([min(xy1(:,1))-wind_size max(xy1(:,1))+wind_size...
+    %       min(xy1(:,2))-wind_size max(xy1(:,2))+wind_size]);
   end
+  drawnow;
 end
-
 
 
 
@@ -1044,7 +1021,6 @@ for zz=1:length(oh)
   end
 end
 
-
 axis_limit=get(handles.lim_axis_checkbox,'Value');
 
 track = assign_labels.tracks{assign_labels.cur_track_num}.points;
@@ -1053,6 +1029,21 @@ track = assign_labels.tracks{assign_labels.cur_track_num}.points;
 unlabeled_bat = assign_labels.d3_analysed.unlabeled_bat;
 plotting_frames = determine_plotting_frames(handles,track_frames,...
   length(unlabeled_bat));
+
+
+%playing raw videos
+if get(handles.photron_toggle,'Value')
+  not_empty_labels=[assign_labels.labels{~cellfun(@isempty,assign_labels.labels)}];
+  for cc=1:2
+    tic
+    for k=1:length(plotting_frames)
+      frame=plotting_frames(k);
+      plot_photron(handles,frame,cc,not_empty_labels);
+    end
+    toc
+  end
+end
+
 
 track_color = get_track_color(assign_labels.labels{assign_labels.cur_track_num});
 
@@ -1148,22 +1139,6 @@ if saving
   close(aviobj);
   system(['explorer.exe /select,' pn(1:end-1) '\' fname]) %open file browser to video
   %encode the file?
-end
-
-%playing raw videos
-if get(handles.photron_toggle,'Value')
-  %cam 1
-  for k=1:length(plotting_frames)
-    frame=plotting_frames(k);
-    plot_photron(handles,frame,1,plotting_frames);
-    %     pause(.02);
-  end
-  %cam2
-  for k=1:length(plotting_frames)
-    frame=plotting_frames(k);
-    plot_photron(handles,frame,2,plotting_frames);
-    %     pause(.02);
-  end
 end
 
 % jFrame.setMinimized(false);
