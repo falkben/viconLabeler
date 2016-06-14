@@ -534,7 +534,9 @@ end
 
 fvideo = assign_labels.d3_analysed.fvideo;
 vicon_frames = length(assign_labels.d3_analysed.unlabeled_bat);
-frame_time = (vicon_frames-frame)/fvideo;
+frame_time = frame/fvideo;
+
+photron_fvideo = fvideo/round(fvideo/photron_fvideo);
 
 % wind_size=150; %used as a window on all sides (actual window is 4*wind_size)
 
@@ -551,7 +553,7 @@ if ~isempty(c1_fname) && (nargin<=2 || cam_num==1)
     assign_labels.photron.c1_video = read(assign_labels.obj_C1,c1frame);
     assign_labels.photron.c1frames = c1frame;
   end
-  imshow(assign_labels.photron.c1_video);
+  image(assign_labels.photron.c1_video);
   set(gca,'position',[0 0 1 1]);
   
   if ~isempty(object_rot)
@@ -587,7 +589,7 @@ if ~isempty(c2_fname) && (nargin<=2 || cam_num==2)
     assign_labels.photron.c2_video = read(assign_labels.obj_C2,c2frame);
     assign_labels.photron.c2frames = c2frame;
   end
-  imshow(assign_labels.photron.c2_video);
+  image(assign_labels.photron.c2_video);
   set(gca,'position',[0 0 1 1]);
   
   if ~isempty(object_rot)
